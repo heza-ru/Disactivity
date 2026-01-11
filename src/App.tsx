@@ -232,9 +232,21 @@ export default function GameLauncher() {
         return pages
     }
 
+    // Create a map of running games info for the TitleBar task manager
+    const runningGamesInfo = useMemo(() => {
+        const map = new Map<string, { game: Game; isLoading: boolean }>()
+        runningGames.forEach((gameId) => {
+            const game = games.find((g) => g.id === gameId)
+            if (game) {
+                map.set(gameId, { game, isLoading: loadingGames.has(gameId) })
+            }
+        })
+        return map
+    }, [runningGames, loadingGames, games])
+
     return (
         <div className="h-screen flex flex-col bg-background/90 dark:bg-background/80 backdrop-blur-xl font-sans antialiased overflow-hidden">
-            <TitleBar />
+            <TitleBar runningGames={runningGamesInfo} onStopGame={handleStopGame} />
 
             <main className="flex-1 overflow-y-auto mt-10 mx-5 pb-5">
                 <div className="container mx-auto px-4 py-6 max-w-4xl">

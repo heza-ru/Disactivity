@@ -26,4 +26,6 @@ reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"
+tauri-plugin-updater = "2.9.0"
+tauri-plugin-process = "2.3.1"
 

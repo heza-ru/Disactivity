@@ -84,12 +84,46 @@
     },
     "updateAvailable": {
       "title": "¡Actualización disponible!",
-      "description": "Hay una nueva versión de Disactivity disponible para descargar, haz clic en el botón de actualización para instalarla."
+      "description": "La versión {{version}} está disponible. Haz clic en el botón de actualización para instalarla."
+    },
+    "updateDownloading": {
+      "title": "Descargando actualización...",
+      "description": "Descargando versión {{version}} ({{progress}}%)"
+    },
+    "updateReady": {
+      "title": "Actualización lista",
+      "description": "La versión {{version}} ha sido descargada. Reinicia para aplicar."
+    },
+    "updateInstalling": {
+      "title": "Instalando actualización...",
+      "description": "Por favor espera mientras se instala la actualización."
+    },
+    "updateError": {
+      "title": "Error de actualización",
+      "description": "Error al actualizar: {{error}}"
+    },
+    "updateNoUpdates": {
+      "title": "Sin actualizaciones",
+      "description": "Estás usando la última versión."
+    },
+    "updateCheckFailed": {
+      "title": "Error al verificar actualizaciones",
+      "description": "No se pudo verificar actualizaciones: {{error}}"
     }
   },
   "theme": {
     "toggleLight": "Cambiar a modo claro",
     "toggleDark": "Cambiar a modo oscuro"
+  },
+  "updater": {
+    "tooltip": "Actualización disponible - clic para instalar",
+    "downloading": "Descargando...",
+    "restart": "Reiniciar para actualizar"
+  },
+  "taskManager": {
+    "title": "Juegos en Ejecución",
+    "stopAll": "Detener Todos",
+    "noGames": "No hay juegos en ejecución"
   }
 }
 

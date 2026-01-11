@@ -84,12 +84,46 @@
     },
     "updateAvailable": {
       "title": "Update available!",
-      "description": "A new version of Disactivity is available for download, click the update button to install it."
+      "description": "Version {{version}} is available. Click the update button to install it."
+    },
+    "updateDownloading": {
+      "title": "Downloading update...",
+      "description": "Downloading version {{version}} ({{progress}}%)"
+    },
+    "updateReady": {
+      "title": "Update ready",
+      "description": "Version {{version}} has been downloaded. Restart to apply."
+    },
+    "updateInstalling": {
+      "title": "Installing update...",
+      "description": "Please wait while the update is being installed."
+    },
+    "updateError": {
+      "title": "Update error",
+      "description": "Failed to update: {{error}}"
+    },
+    "updateNoUpdates": {
+      "title": "No updates available",
+      "description": "You are running the latest version."
+    },
+    "updateCheckFailed": {
+      "title": "Update check failed",
+      "description": "Could not check for updates: {{error}}"
     }
   },
   "theme": {
     "toggleLight": "Switch to light mode",
     "toggleDark": "Switch to dark mode"
+  },
+  "updater": {
+    "tooltip": "Update available - click to install",
+    "downloading": "Downloading...",
+    "restart": "Restart to update"
+  },
+  "taskManager": {
+    "title": "Running Games",
+    "stopAll": "Stop All Games",
+    "noGames": "No games running"
   }
 }
 
