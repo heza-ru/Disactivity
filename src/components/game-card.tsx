@@ -15,6 +15,7 @@ export interface Game {
     name: string
     icon_hash: string
     executables?: Executable[] | null
+    aliases?: string[] | null
 }
 
 interface GameCardProps {

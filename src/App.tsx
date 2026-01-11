@@ -94,9 +94,15 @@ export default function GameLauncher() {
             setFilteredGames(games)
             return
         }
-        const results = games.filter(
-            (game) => game.name.toLowerCase().includes(query) || game.id.toLowerCase().includes(query),
-        )
+        const results = games.filter((game) => {
+            // Search by name
+            if (game.name.toLowerCase().includes(query)) return true
+            // Search by ID
+            if (game.id.toLowerCase().includes(query)) return true
+            // Search by aliases
+            if (game.aliases?.some((alias) => alias.toLowerCase().includes(query))) return true
+            return false
+        })
         setFilteredGames(results)
     }
 

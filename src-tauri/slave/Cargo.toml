@@ -2,14 +2,19 @@
 name = "slave"
 version = "0.1.0"
 edition = "2021"
+description = "Disactivity Game Runner Helper"
+authors = ["holasoyender"]
 
 [dependencies]
 windows-sys = { version = "0.59", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Graphics_Gdi"] }
+
+[build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 opt-level = "z"
 lto = true
 codegen-units = 1
 panic = "abort"
-strip = true
+strip = false
 

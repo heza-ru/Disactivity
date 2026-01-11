@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "disactivity",
+  "productName": "Disactivity",
   "version": "0.1.0",
-  "identifier": "com.javiw.disactivity",
+  "identifier": "com.holasoyender.disactivity",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "disactivity",
+        "title": "Disactivity",
         "width": 650,
         "height": 800,
         "decorations": false,
@@ -37,7 +37,17 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "publisher": "holasoyender",
+    "copyright": "Copyright © 2026 holasoyender",
+    "shortDescription": "Discord Activity Simulator",
+    "longDescription": "Disactivity allows you to simulate game activity on Discord by running fake game processes that Discord can detect.",
+    "category": "Utility",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
   },
   "plugins": {
     "updater": {

@@ -43,6 +43,7 @@ pub struct Game {
     pub icon_hash: Option<String>,
     #[serde(default)]
     pub executables: Option<Vec<Executable>>,
+    pub aliases: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
