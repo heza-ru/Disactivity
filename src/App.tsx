@@ -13,6 +13,7 @@ import { Search, RefreshCw, Gamepad2, Loader2, Star } from "lucide-react"
 import { GameCard, type Game } from "@/components/game-card"
 import { TitleBar } from "@/components/title-bar"
 import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     Pagination,
     PaginationContent,
@@ -100,8 +101,8 @@ export default function GameLauncher() {
             // Search by ID
             if (game.id.toLowerCase().includes(query)) return true
             // Search by aliases
-            if (game.aliases?.some((alias) => alias.toLowerCase().includes(query))) return true
-            return false
+            return !!game.aliases?.some((alias) => alias.toLowerCase().includes(query));
+
         })
         setFilteredGames(results)
     }
@@ -254,8 +255,9 @@ export default function GameLauncher() {
         <div className="h-screen flex flex-col bg-background/90 dark:bg-background/80 backdrop-blur-xl font-sans antialiased overflow-hidden">
             <TitleBar runningGames={runningGamesInfo} onStopGame={handleStopGame} />
 
-            <main className="flex-1 overflow-y-auto mt-10 mx-5 pb-5">
-                <div className="container mx-auto px-4 py-6 max-w-4xl">
+            <ScrollArea className="flex-1 mt-10">
+                <main className="mx-5 pb-5">
+                    <div className="container mx-auto px-4 py-6 max-w-4xl">
 
                     {/* Search Bar */}
                     <div className="flex gap-2 mb-6">
@@ -431,6 +433,7 @@ export default function GameLauncher() {
                     )}
                 </div>
             </main>
+            </ScrollArea>
             <Toaster />
         </div>
     )

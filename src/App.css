@@ -139,20 +139,16 @@ button:hover {
         background-color: transparent;
     }
 
-    /* Hide scrollbar completely */
-    ::-webkit-scrollbar {
+    /* Hide native scrollbar for elements that don't use ScrollArea */
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
         display: none;
         width: 0;
         height: 0;
     }
 
-    /* Firefox - hide scrollbar */
-    * {
+    html, body {
         scrollbar-width: none;
-    }
-
-    /* IE/Edge - hide scrollbar */
-    * {
         -ms-overflow-style: none;
     }
 }
