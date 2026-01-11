@@ -1,6 +1,7 @@
 "use client"
 
 import React, {useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import {
     Minus,
     Square,
@@ -15,6 +16,7 @@ import {Button} from "@/components/ui/button.tsx";
 import {toast} from "sonner";
 
 export function TitleBar() {
+    const { t } = useTranslation()
     const [isHovered, setIsHovered] = useState(false)
     const [isDark, setIsDark] = useState(false)
 
@@ -62,8 +64,8 @@ export function TitleBar() {
         // Simulate update check todo: implement real update check
         setTimeout(() => {
             setUpdateAvailable(true) // Simulate an available update
-            toast("Update available!", {
-                description: "A new version of Disactivity is available for download, click the update button to install it.",
+            toast(t("toast.updateAvailable.title"), {
+                description: t("toast.updateAvailable.description"),
             })
         }, 2000)
     }

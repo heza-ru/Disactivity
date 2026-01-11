@@ -1,0 +1,95 @@
+{
+  "app": {
+    "title": "Disactivity"
+  },
+  "search": {
+    "placeholder": "Buscar juegos por nombre o ID...",
+    "button": "Buscar"
+  },
+  "actions": {
+    "refresh": "Actualizar",
+    "run": "Ejecutar",
+    "stop": "Detener"
+  },
+  "loading": {
+    "games": "Cargando juegos desde Discord..."
+  },
+  "favorites": {
+    "title": "Favoritos",
+    "add": "Añadir a favoritos",
+    "remove": "Quitar de favoritos"
+  },
+  "gameCard": {
+    "running": "Ejecutando",
+    "executables": "Ejecutables",
+    "id": "ID"
+  },
+  "pagination": {
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "goToPage": "Ir a página:",
+    "of": "de"
+  },
+  "footer": {
+    "favorite": "favorito",
+    "favorites": "favoritos",
+    "showing": "Mostrando",
+    "game": "juego",
+    "games": "juegos",
+    "page": "Página",
+    "noGames": "No hay juegos para mostrar"
+  },
+  "emptyState": {
+    "noGamesFound": "No se encontraron juegos que coincidan con tu búsqueda."
+  },
+  "toast": {
+    "refreshed": {
+      "title": "Actualizado",
+      "description": "Se cargaron {{count}} juegos desde la API de Discord."
+    },
+    "loadedFromCache": {
+      "title": "Cargado desde caché",
+      "description": "Se cargaron {{count}} juegos desde la caché."
+    },
+    "error": {
+      "title": "Error",
+      "fetchFailed": "Error al obtener juegos: {{error}}"
+    },
+    "cannotStartGame": {
+      "title": "No se puede iniciar el juego",
+      "noExecutables": "Este juego no tiene ejecutables definidos."
+    },
+    "gameStarted": {
+      "title": "Juego iniciado",
+      "description": "{{name}} se está ejecutando."
+    },
+    "failedToStartGame": {
+      "title": "Error al iniciar el juego"
+    },
+    "gameStopped": {
+      "title": "Juego detenido",
+      "description": "{{name}} ha sido detenido."
+    },
+    "failedToStopGame": {
+      "title": "Error al detener el juego"
+    },
+    "addedToFavorites": {
+      "title": "Añadido a favoritos"
+    },
+    "removedFromFavorites": {
+      "title": "Quitado de favoritos"
+    },
+    "failedToUpdateFavorites": {
+      "title": "Error al actualizar favoritos"
+    },
+    "updateAvailable": {
+      "title": "¡Actualización disponible!",
+      "description": "Hay una nueva versión de Disactivity disponible para descargar, haz clic en el botón de actualización para instalarla."
+    }
+  },
+  "theme": {
+    "toggleLight": "Cambiar a modo claro",
+    "toggleDark": "Cambiar a modo oscuro"
+  }
+}
+

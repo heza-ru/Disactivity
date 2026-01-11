@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { invoke } from "@tauri-apps/api/core"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -28,6 +29,7 @@ interface FetchGamesResponse {
 }
 
 export default function GameLauncher() {
+    const { t } = useTranslation()
     const [searchQuery, setSearchQuery] = useState("")
     const [games, setGames] = useState<Game[]>([])
     const [filteredGames, setFilteredGames] = useState<Game[]>([])
@@ -53,17 +55,17 @@ export default function GameLauncher() {
             setCurrentPage(1)
 
             if (forceRefresh) {
-                toast.success("Refreshed", {
-                    description: `Loaded ${response.games.length} games from Discord API.`,
+                toast.success(t("toast.refreshed.title"), {
+                    description: t("toast.refreshed.description", { count: response.games.length }),
                 })
             } else if (response.from_cache) {
-                toast.info("Loaded from cache", {
-                    description: `Loaded ${response.games.length} games from cache.`,
+                toast.info(t("toast.loadedFromCache.title"), {
+                    description: t("toast.loadedFromCache.description", { count: response.games.length }),
                 })
             }
         } catch (error) {
-            toast.error("Error", {
-                description: `Failed to fetch games: ${error}`,
+            toast.error(t("toast.error.title"), {
+                description: t("toast.error.fetchFailed", { error }),
             })
         } finally {
             setIsLoading(false)
@@ -111,8 +113,8 @@ export default function GameLauncher() {
 
     const handleStartGame = async (game: Game) => {
         if (!game.executables || game.executables.length === 0) {
-            toast.error("Cannot start game", {
-                description: "This game has no executables defined.",
+            toast.error(t("toast.cannotStartGame.title"), {
+                description: t("toast.cannotStartGame.noExecutables"),
             })
             return
         }
@@ -126,11 +128,11 @@ export default function GameLauncher() {
             })
 
             setRunningGames((prev) => new Set(prev).add(game.id))
-            toast.success("Game started", {
-                description: `${game.name} is now running.`,
+            toast.success(t("toast.gameStarted.title"), {
+                description: t("toast.gameStarted.description", { name: game.name }),
             })
         } catch (error) {
-            toast.error("Failed to start game", {
+            toast.error(t("toast.failedToStartGame.title"), {
                 description: `${error}`,
             })
         } finally {
@@ -154,11 +156,11 @@ export default function GameLauncher() {
                 next.delete(gameId)
                 return next
             })
-            toast.success("Game stopped", {
-                description: `${game?.name || "Game"} has been stopped.`,
+            toast.success(t("toast.gameStopped.title"), {
+                description: t("toast.gameStopped.description", { name: game?.name || "Game" }),
             })
         } catch (error) {
-            toast.error("Failed to stop game", {
+            toast.error(t("toast.failedToStopGame.title"), {
                 description: `${error}`,
             })
         } finally {
@@ -183,11 +185,11 @@ export default function GameLauncher() {
                 return next
             })
             const game = games.find((g) => g.id === gameId)
-            toast.success(isFavorite ? "Added to favorites" : "Removed from favorites", {
+            toast.success(isFavorite ? t("toast.addedToFavorites.title") : t("toast.removedFromFavorites.title"), {
                 description: game?.name || gameId,
             })
         } catch (error) {
-            toast.error("Failed to update favorites", {
+            toast.error(t("toast.failedToUpdateFavorites.title"), {
                 description: `${error}`,
             })
         }
@@ -243,7 +245,7 @@ export default function GameLauncher() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 type="text"
-                                placeholder="Search games by name or ID..."
+                                placeholder={t("search.placeholder")}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={handleKeyDown}
@@ -253,7 +255,7 @@ export default function GameLauncher() {
                         </div>
                         <Button onClick={handleSearch} disabled={isLoading}>
                             <Search className="h-4 w-4 mr-2" />
-                            Search
+                            {t("search.button")}
                         </Button>
                         <Button variant="outline" onClick={handleRefresh} disabled={isLoading || isRefreshing} className="bg-background">
                             {isRefreshing ? (
@@ -261,7 +263,7 @@ export default function GameLauncher() {
                             ) : (
                                 <RefreshCw className="h-4 w-4 mr-2" />
                             )}
-                            Refresh
+                            {t("actions.refresh")}
                         </Button>
                     </div>
 
@@ -269,7 +271,7 @@ export default function GameLauncher() {
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-20">
                             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                            <p className="text-muted-foreground">Loading games from Discord...</p>
+                            <p className="text-muted-foreground">{t("loading.games")}</p>
                         </div>
                     ) : (
                         <>
@@ -278,7 +280,7 @@ export default function GameLauncher() {
                                 <div className="mb-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                                        <h2 className="text-sm font-semibold text-foreground">Favorites</h2>
+                                        <h2 className="text-sm font-semibold text-foreground">{t("favorites.title")}</h2>
                                         <span className="text-xs text-muted-foreground">({favoriteGames.length})</span>
                                     </div>
                                     <div className="space-y-1">
@@ -317,7 +319,7 @@ export default function GameLauncher() {
                                 ) : filteredGames.length === 0 ? (
                                     <div className="text-center py-12 text-muted-foreground">
                                         <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                        <p>No games found matching your search.</p>
+                                        <p>{t("emptyState.noGamesFound")}</p>
                                     </div>
                                 ) : null}
                             </div>
@@ -372,7 +374,7 @@ export default function GameLauncher() {
 
                                     {/* Page Jump */}
                                     <div className="flex items-center justify-center gap-2 text-sm">
-                                        <span className="text-muted-foreground">Go to page:</span>
+                                        <span className="text-muted-foreground">{t("pagination.goToPage")}</span>
                                         <Input
                                             type="number"
                                             min={1}
@@ -388,7 +390,7 @@ export default function GameLauncher() {
                                                 }
                                             }}
                                         />
-                                        <span className="text-muted-foreground">of {totalPages}</span>
+                                        <span className="text-muted-foreground">{t("pagination.of")} {totalPages}</span>
                                     </div>
                                 </div>
                             )}
@@ -398,13 +400,13 @@ export default function GameLauncher() {
                                 {filteredGames.length > 0 ? (
                                     <>
                                         {favoriteGames.length > 0 && (
-                                            <span>{favoriteGames.length} favorite{favoriteGames.length !== 1 ? "s" : ""} • </span>
+                                            <span>{favoriteGames.length} {favoriteGames.length !== 1 ? t("footer.favorites") : t("footer.favorite")} • </span>
                                         )}
-                                        Showing {nonFavoriteGames.length > 0 ? ((currentPage - 1) * ITEMS_PER_PAGE) + 1 : 0}-{Math.min(currentPage * ITEMS_PER_PAGE, nonFavoriteGames.length)} of {nonFavoriteGames.length} game{nonFavoriteGames.length !== 1 ? "s" : ""}
-                                        {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+                                        {t("footer.showing")} {nonFavoriteGames.length > 0 ? ((currentPage - 1) * ITEMS_PER_PAGE) + 1 : 0}-{Math.min(currentPage * ITEMS_PER_PAGE, nonFavoriteGames.length)} {t("pagination.of")} {nonFavoriteGames.length} {nonFavoriteGames.length !== 1 ? t("footer.games") : t("footer.game")}
+                                        {totalPages > 1 && ` (${t("footer.page")} ${currentPage} ${t("pagination.of")} ${totalPages})`}
                                     </>
                                 ) : (
-                                    <>No games to display</>
+                                    <>{t("footer.noGames")}</>
                                 )}
                             </div>
                         </>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Info, Play, Square, Loader2, Star } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -34,6 +35,8 @@ function getGameIconUrl(game: Game, size: number = 64): string {
 }
 
 export function GameCard({ game, isRunning, isLoading, isFavorite, onStart, onStop, onToggleFavorite }: GameCardProps) {
+    const { t } = useTranslation()
+
     const handleClick = () => {
         if (isRunning) {
             onStop(game.id)
@@ -71,7 +74,7 @@ export function GameCard({ game, isRunning, isLoading, isFavorite, onStart, onSt
                     <h3 className="font-medium text-foreground truncate">{game.name}</h3>
                     {isRunning && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 font-medium">
-                            Running
+                            {t("gameCard.running")}
                         </span>
                     )}
                     <TooltipProvider delayDuration={200}>
@@ -82,10 +85,10 @@ export function GameCard({ game, isRunning, isLoading, isFavorite, onStart, onSt
                             <TooltipContent side="top" className="max-w-xs">
                                 <div className="space-y-1">
                                     <p className="font-semibold">{game.name}</p>
-                                    <p className="text-xs text-muted-foreground">ID: {game.id}</p>
+                                    <p className="text-xs text-muted-foreground">{t("gameCard.id")}: {game.id}</p>
                                     {game.executables && game.executables.length > 0 && (
                                         <div className="text-xs">
-                                            <p className="font-medium">Executables:</p>
+                                            <p className="font-medium">{t("gameCard.executables")}:</p>
                                             <ul className="list-disc list-inside max-h-32 overflow-y-auto">
                                                 {game.executables.map((exe, idx) => (
                                                     <li key={idx} className="text-muted-foreground truncate">
@@ -100,7 +103,7 @@ export function GameCard({ game, isRunning, isLoading, isFavorite, onStart, onSt
                         </Tooltip>
                     </TooltipProvider>
                 </div>
-                <span className="text-xs text-muted-foreground font-mono">ID: {game.id}</span>
+                <span className="text-xs text-muted-foreground font-mono">{t("gameCard.id")}: {game.id}</span>
             </div>
 
             <TooltipProvider delayDuration={200}>
@@ -122,7 +125,7 @@ export function GameCard({ game, isRunning, isLoading, isFavorite, onStart, onSt
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top">
-                        {isFavorite ? "Remove from favorites" : "Add to favorites"}
+                        {isFavorite ? t("favorites.remove") : t("favorites.add")}
                     </TooltipContent>
                 </Tooltip>
             </TooltipProvider>
@@ -141,7 +144,7 @@ export function GameCard({ game, isRunning, isLoading, isFavorite, onStart, onSt
                 ) : (
                     <Play className="h-4 w-4 mr-1.5" />
                 )}
-                {isRunning ? "Stop" : "Run"}
+                {isRunning ? t("actions.stop") : t("actions.run")}
             </Button>
         </div>
     )

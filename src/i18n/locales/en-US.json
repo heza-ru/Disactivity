@@ -1,0 +1,95 @@
+{
+  "app": {
+    "title": "Disactivity"
+  },
+  "search": {
+    "placeholder": "Search games by name or ID...",
+    "button": "Search"
+  },
+  "actions": {
+    "refresh": "Refresh",
+    "run": "Run",
+    "stop": "Stop"
+  },
+  "loading": {
+    "games": "Loading games from Discord..."
+  },
+  "favorites": {
+    "title": "Favorites",
+    "add": "Add to favorites",
+    "remove": "Remove from favorites"
+  },
+  "gameCard": {
+    "running": "Running",
+    "executables": "Executables",
+    "id": "ID"
+  },
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "goToPage": "Go to page:",
+    "of": "of"
+  },
+  "footer": {
+    "favorite": "favorite",
+    "favorites": "favorites",
+    "showing": "Showing",
+    "game": "game",
+    "games": "games",
+    "page": "Page",
+    "noGames": "No games to display"
+  },
+  "emptyState": {
+    "noGamesFound": "No games found matching your search."
+  },
+  "toast": {
+    "refreshed": {
+      "title": "Refreshed",
+      "description": "Loaded {{count}} games from Discord API."
+    },
+    "loadedFromCache": {
+      "title": "Loaded from cache",
+      "description": "Loaded {{count}} games from cache."
+    },
+    "error": {
+      "title": "Error",
+      "fetchFailed": "Failed to fetch games: {{error}}"
+    },
+    "cannotStartGame": {
+      "title": "Cannot start game",
+      "noExecutables": "This game has no executables defined."
+    },
+    "gameStarted": {
+      "title": "Game started",
+      "description": "{{name}} is now running."
+    },
+    "failedToStartGame": {
+      "title": "Failed to start game"
+    },
+    "gameStopped": {
+      "title": "Game stopped",
+      "description": "{{name}} has been stopped."
+    },
+    "failedToStopGame": {
+      "title": "Failed to stop game"
+    },
+    "addedToFavorites": {
+      "title": "Added to favorites"
+    },
+    "removedFromFavorites": {
+      "title": "Removed from favorites"
+    },
+    "failedToUpdateFavorites": {
+      "title": "Failed to update favorites"
+    },
+    "updateAvailable": {
+      "title": "Update available!",
+      "description": "A new version of Disactivity is available for download, click the update button to install it."
+    }
+  },
+  "theme": {
+    "toggleLight": "Switch to light mode",
+    "toggleDark": "Switch to dark mode"
+  }
+}
+
