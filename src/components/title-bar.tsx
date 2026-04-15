@@ -29,7 +29,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { SettingsDialog } from "@/components/settings-dialog"
 import type { Game } from "@/components/game-card"
+import type { AppSettings } from "@/lib/settings"
 
 type UpdateState = "idle" | "checking" | "available" | "downloading" | "ready" | "error"
 
@@ -42,15 +44,22 @@ interface RunningGameInfo {
 interface TitleBarProps {
     runningGames?: Map<string, RunningGameInfo>
     onStopGame?: (gameId: string) => void
+    settings?: AppSettings
+    onSaveSettings?: (settings: AppSettings) => void
+    autoStopMinutes?: number
 }
 
-export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps) {
+export function TitleBar({
+    runningGames = new Map(),
+    onStopGame,
+    settings,
+    onSaveSettings,
+    autoStopMinutes = 15,
+}: TitleBarProps) {
     const { t } = useTranslation()
-    const [isHovered, setIsHovered] = useState(false)
     const [isDark, setIsDark] = useState(false)
     const [, setTick] = useState(0)
 
-    // Tick every second to update elapsed times in the task manager
     useEffect(() => {
         if (runningGames.size === 0) return
         const interval = setInterval(() => setTick((t) => t + 1), 1000)
@@ -61,7 +70,6 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
     const [updateVersion, setUpdateVersion] = useState<string>("")
     const [downloadProgress, setDownloadProgress] = useState(0)
     const updateRef = useRef<Update | null>(null)
-    const pendingUpdateRef = useRef<boolean>(false)
 
     const handleMinimize = async () => {
         const window = getCurrentWindow()
@@ -79,16 +87,10 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
     }
 
     const handleClose = async () => {
-        // If there's a pending update, install it silently before closing
-        if (pendingUpdateRef.current && updateRef.current) {
-            try {
-                await updateRef.current.install()
-            } catch (error) {
-                console.error("Failed to install update on close:", error)
-            }
-        }
-        const window = getCurrentWindow()
-        await window.close()
+        // Rust intercepts CloseRequested and hides to tray.
+        // To quit entirely, use the tray menu → Quit.
+        const appWindow = getCurrentWindow()
+        await appWindow.close()
     }
 
     useEffect(() => {
@@ -98,7 +100,6 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
             document.documentElement.classList.add("dark")
         }
 
-        // Check for updates on boot
         checkForUpdates().catch(console.error)
     }, [])
 
@@ -127,7 +128,6 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
         } catch (error) {
             console.error("Update check failed:", error)
             setUpdateState("idle")
-            // Don't show error toast on boot - just silently fail
         }
     }
 
@@ -160,7 +160,6 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
             })
 
             setUpdateState("ready")
-            pendingUpdateRef.current = true
 
             toast.success(t("toast.updateReady.title"), {
                 description: t("toast.updateReady.description", { version: updateVersion }),
@@ -248,6 +247,7 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
     const showUpdateButton = updateState !== "idle"
     const runningGamesArray = Array.from(runningGames.values())
     const runningCount = runningGamesArray.length
+    const timerLabel = `${String(autoStopMinutes).padStart(2, "0")}:00`
 
     const formatElapsedTime = (ms: number): string => {
         const totalSeconds = Math.floor(ms / 1000)
@@ -279,8 +279,6 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
 
             <div
                 className="flex items-center gap-2 relative z-10"
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
                 style={{WebkitAppRegion: 'no-drag'} as React.CSSProperties}
             >
                 {/* Running Games Task Manager */}
@@ -288,7 +286,7 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="secondary" size="sm" className="h-8 gap-1.5 px-2">
-                                <SquareActivity className="h-4 w-4 text-green-500" />
+                                <SquareActivity className="h-4 w-4 text-green-500 animate-pulse" />
                                 <span className="text-xs font-medium">{runningCount}</span>
                             </Button>
                         </DropdownMenuTrigger>
@@ -300,7 +298,9 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
                             <DropdownMenuSeparator />
                             {runningGamesArray.map(({ game, isLoading, startTime }) => {
                                 const elapsed = Date.now() - startTime
-                                const progress = Math.min((elapsed / (15 * 60 * 1000)) * 100, 100)
+                                const autoStopMs = autoStopMinutes * 60 * 1000
+                                const autoStopEnabled = settings?.autoStopEnabled ?? true
+                                const progress = Math.min((elapsed / autoStopMs) * 100, 100)
                                 return (
                                 <DropdownMenuItem
                                     key={game.id}
@@ -319,16 +319,20 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
                                         <p className="text-sm font-medium truncate">{game.name}</p>
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-xs text-green-500 font-medium">{formatElapsedTime(elapsed)}</span>
-                                            <span className="text-[10px] text-muted-foreground">/ 15:00</span>
+                                            {autoStopEnabled && (
+                                                <span className="text-[10px] text-muted-foreground">/ {timerLabel}</span>
+                                            )}
                                         </div>
-                                        <div className="mt-1 h-1 rounded-full bg-muted/50 overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-1000 ease-linear ${
-                                                    progress >= 100 ? "bg-green-500" : "bg-primary"
-                                                }`}
-                                                style={{ width: `${progress}%` }}
-                                            />
-                                        </div>
+                                        {autoStopEnabled && (
+                                            <div className="mt-1 h-1 rounded-full bg-muted/50 overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full transition-all duration-1000 ease-linear ${
+                                                        progress >= 100 ? "bg-green-500" : "bg-primary"
+                                                    }`}
+                                                    style={{ width: `${progress}%` }}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                     <Button
                                         variant="ghost"
@@ -385,42 +389,42 @@ export function TitleBar({ runningGames = new Map(), onStopGame }: TitleBarProps
                     </TooltipProvider>
                 )}
 
+                {/* Settings */}
+                {settings && onSaveSettings && (
+                    <SettingsDialog settings={settings} onSave={onSaveSettings} />
+                )}
+
                 <Button variant="secondary" size="icon" onClick={toggleTheme} className="h-8 w-8">
                     {isDark ? <Sun className="h-5 w-5"/> : <Moon className="h-5 w-5"/>}
                 </Button>
 
-                {/* Minimize - Yellow */}
-                <button
-                    onClick={handleMinimize}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className="group w-5 h-3 rounded-full bg-[#FEBC2E] hover:bg-[#FEBC2E]/80 flex items-center justify-center transition-colors"
-                >
-                    {isHovered && (
-                        <Minus className="w-2 h-2 text-[#995700] opacity-0 group-hover:opacity-100 transition-opacity"/>
-                    )}
-                </button>
-
-                {/* Maximize - Green */}
-                <button
-                    onClick={handleMaximize}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className="group w-5 h-3 rounded-full bg-[#28C840] hover:bg-[#28C840]/80 flex items-center justify-center transition-colors"
-                >
-                    {isHovered && (
-                        <Square
-                            className="w-1.5 h-1.5 text-[#006500] opacity-0 group-hover:opacity-100 transition-opacity"/>
-                    )}
-                </button>
-
-                {/* Close - Red */}
-                <button
-                    onClick={handleClose}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className="group w-5 h-3 rounded-full bg-[#FF5F57] hover:bg-[#FF5F57]/80 flex items-center justify-center transition-colors"
-                >
-                    {isHovered &&
-                        <X className="w-2 h-2 text-[#4A0002] opacity-0 group-hover:opacity-100 transition-opacity"/>}
-                </button>
+                {/* Windows-style caption buttons — flush to the right edge */}
+                <div className="flex items-stretch -mr-4 ml-1">
+                    <button
+                        onClick={handleMinimize}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="h-10 w-11 flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-foreground/10 transition-colors"
+                        aria-label="Minimize"
+                    >
+                        <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                        onClick={handleMaximize}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="h-10 w-11 flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-foreground/10 transition-colors"
+                        aria-label="Maximize"
+                    >
+                        <Square className="h-3 w-3" />
+                    </button>
+                    <button
+                        onClick={handleClose}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="h-10 w-11 flex items-center justify-center text-foreground/60 hover:text-white hover:bg-red-600 transition-colors"
+                        aria-label="Close"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </div>
             </div>
         </header>
     )

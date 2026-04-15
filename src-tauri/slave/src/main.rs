@@ -8,10 +8,11 @@ use std::path::Path;
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, RegisterClassW,
-    ShowWindow, TranslateMessage, CS_HREDRAW, CS_VREDRAW, MSG, SW_SHOWMINNOACTIVE,
-    WNDCLASSW, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_OVERLAPPEDWINDOW, WS_POPUP,
-    WM_CLOSE, WM_DESTROY, WM_QUERYENDSESSION, WM_ENDSESSION,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, LoadIconW,
+    RegisterClassW, ShowWindow, TranslateMessage, CS_HREDRAW, CS_VREDRAW, MSG,
+    SW_SHOWMINNOACTIVE, WNDCLASSW, WS_EX_APPWINDOW, WS_EX_NOACTIVATE,
+    WS_OVERLAPPEDWINDOW, WS_POPUP, WM_CLOSE, WM_DESTROY, WM_QUERYENDSESSION,
+    WM_ENDSESSION,
 };
 
 /// Convert a Rust string to a null-terminated wide string for Windows API
@@ -42,13 +43,16 @@ fn main() {
     unsafe {
         let hinstance = GetModuleHandleW(null_mut());
 
+        // Load the icon embedded by build.rs (winresource assigns resource ID 1)
+        let hicon = LoadIconW(hinstance, 1usize as *const u16);
+
         let wc = WNDCLASSW {
             style: CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc: Some(wndproc),
             cbClsExtra: 0,
             cbWndExtra: 0,
             hInstance: hinstance,
-            hIcon: null_mut(),
+            hIcon: hicon,
             hCursor: null_mut(),
             hbrBackground: null_mut(),
             lpszMenuName: null_mut(),

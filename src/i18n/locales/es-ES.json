@@ -17,14 +17,33 @@
   "favorites": {
     "title": "Favoritos",
     "add": "Añadir a favoritos",
-    "remove": "Quitar de favoritos"
+    "remove": "Quitar de favoritos",
+    "export": "Exportar favoritos",
+    "exportedDesc": "Se exportaron {{count}} favoritos al archivo.",
+    "exported": "Favoritos exportados",
+    "import": "Importar favoritos",
+    "importDesc": "Importar un archivo de favoritos exportado anteriormente.",
+    "imported": "Favoritos importados",
+    "importedDesc": "Se añadieron {{count}} favoritos nuevos.",
+    "importError": "Archivo de favoritos no válido"
   },
   "gameCard": {
     "running": "Ejecutando",
     "executables": "Ejecutables",
-    "id": "ID"
+    "id": "ID",
+    "copyId": "Copiar ID",
+    "copied": "¡Copiado!",
+    "selectExecutable": "Seleccionar ejecutable"
+  },
+  "gameDetails": {
+    "open": "Ver detalles de {{name}}",
+    "aliases": "Alias",
+    "win32Executables": "Ejecutables de Windows",
+    "otherExecutables": "Otros Ejecutables",
+    "noExecutables": "No hay ejecutables definidos para este juego."
   },
   "pagination": {
+    "label": "Navegación de páginas",
     "previous": "Anterior",
     "next": "Siguiente",
     "goToPage": "Ir a página:",
@@ -41,6 +60,22 @@
   },
   "emptyState": {
     "noGamesFound": "No se encontraron juegos que coincidan con tu búsqueda."
+  },
+  "shortcuts": {
+    "hint": "Atajo: Pulsa / o Ctrl+F para buscar · Escape para limpiar"
+  },
+  "settings": {
+    "title": "Configuración",
+    "tooltip": "Configuración",
+    "saved": "Configuración guardada",
+    "itemsPerPage": "Juegos por página",
+    "itemsPerPageDesc": "Cuántos juegos mostrar por página (10–200).",
+    "autoStop": "Detener juegos automáticamente",
+    "autoStopDesc": "Detener los juegos simulados automáticamente cuando el temporizador expire.",
+    "autoStopMinutes": "Detener después de",
+    "minutes": "minutos",
+    "save": "Guardar",
+    "cancel": "Cancelar"
   },
   "toast": {
     "refreshed": {
@@ -126,4 +161,3 @@
     "noGames": "No hay juegos en ejecución"
   }
 }
-

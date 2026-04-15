@@ -5,6 +5,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::Mutex;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
 
 const DISCORD_GAMES_API_URL: &str = "https://discord.com/api/v9/games/detectable";
@@ -301,9 +303,18 @@ fn stop_game(game_id: String, state: tauri::State<'_, AppState>) -> Result<(), S
     let mut running = state.running_games.lock().map_err(|e| e.to_string())?;
 
     if let Some(mut game) = running.remove(&game_id) {
-        // Kill the process
-        let _ = game.process.kill();
-        let _ = game.process.wait();
+        // Only kill if still running — avoids an error on already-exited processes
+        match game.process.try_wait() {
+            Ok(None) => {
+                // Process is still alive, terminate it
+                let _ = game.process.kill();
+                let _ = game.process.wait();
+            }
+            _ => {
+                // Already exited (or try_wait failed); just reap
+                let _ = game.process.wait();
+            }
+        }
 
         // Cleanup temp directory
         cleanup_game(&game.temp_dir)?;
@@ -377,6 +388,60 @@ pub fn run() {
         .manage(AppState {
             running_games: Mutex::new(HashMap::new()),
         })
+        .setup(|app| {
+            let show_item = MenuItem::with_id(app, "show", "Show Disactivity", true, None::<&str>)?;
+            let sep = PredefinedMenuItem::separator(app)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &sep, &quit_item])?;
+
+            let icon = app
+                .default_window_icon()
+                .expect("no default window icon")
+                .clone();
+
+            let _tray = TrayIconBuilder::new()
+                .icon(icon)
+                .menu(&menu)
+                .tooltip("Disactivity")
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => {
+                        if let Some(win) = app.get_webview_window("main") {
+                            let _ = win.show();
+                            let _ = win.set_focus();
+                        }
+                    }
+                    "quit" => {
+                        // Clean up running game processes before exit
+                        if let Some(state) = app.try_state::<AppState>() {
+                            cleanup_all_games(state.inner());
+                        }
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    // Left-click toggles window visibility
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(win) = app.get_webview_window("main") {
+                            if win.is_visible().unwrap_or(false) {
+                                let _ = win.hide();
+                            } else {
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                            }
+                        }
+                    }
+                })
+                .build(app)?;
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             fetch_games,
             get_cache_info,
@@ -389,11 +454,12 @@ pub fn run() {
             toggle_favorite
         ])
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                // Cleanup all games when window is closed
-                if let Some(state) = window.try_state::<AppState>() {
-                    cleanup_all_games(state.inner());
-                }
+            // Intercept the close button — hide to tray instead of quitting.
+            // Actual exit happens via the tray "Quit" menu item, which also
+            // runs cleanup_all_games before calling app.exit(0).
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
             }
         })
         .run(tauri::generate_context!())

@@ -1,0 +1,3 @@
+export const ITEMS_PER_PAGE_DEFAULT = 50
+export const AUTO_STOP_MINUTES_DEFAULT = 15
+export const FIFTEEN_MINUTES_MS = 15 * 60 * 1000

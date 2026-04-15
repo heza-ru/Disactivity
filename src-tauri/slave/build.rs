@@ -15,6 +15,9 @@ fn main() {
         res.set("InternalName", "slave");
         res.set("Comments", "Game activity simulator for Discord");
 
+        // Embed the app icon so the taskbar entry shows the Disactivity icon
+        res.set_icon("../icons/icon.ico");
+
         // Compile the resource
         res.compile().expect("Failed to compile Windows resources");
     }

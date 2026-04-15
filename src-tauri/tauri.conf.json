@@ -15,9 +15,11 @@
         "title": "Disactivity",
         "width": 650,
         "height": 800,
+        "minWidth": 600,
+        "minHeight": 720,
         "decorations": false,
         "transparent": true,
-        "resizable": false,
+        "resizable": true,
         "windowEffects": {
           "effects": ["mica"]
         }

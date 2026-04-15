@@ -17,14 +17,33 @@
   "favorites": {
     "title": "Favorites",
     "add": "Add to favorites",
-    "remove": "Remove from favorites"
+    "remove": "Remove from favorites",
+    "export": "Export favorites",
+    "exportedDesc": "Exported {{count}} favorites to file.",
+    "exported": "Favorites exported",
+    "import": "Import favorites",
+    "importDesc": "Import a previously exported favorites file.",
+    "imported": "Favorites imported",
+    "importedDesc": "Added {{count}} new favorites.",
+    "importError": "Invalid favorites file"
   },
   "gameCard": {
     "running": "Running",
     "executables": "Executables",
-    "id": "ID"
+    "id": "ID",
+    "copyId": "Copy ID",
+    "copied": "Copied!",
+    "selectExecutable": "Select executable"
+  },
+  "gameDetails": {
+    "open": "View details for {{name}}",
+    "aliases": "Aliases",
+    "win32Executables": "Windows Executables",
+    "otherExecutables": "Other Executables",
+    "noExecutables": "No executables defined for this game."
   },
   "pagination": {
+    "label": "Page navigation",
     "previous": "Previous",
     "next": "Next",
     "goToPage": "Go to page:",
@@ -41,6 +60,22 @@
   },
   "emptyState": {
     "noGamesFound": "No games found matching your search."
+  },
+  "shortcuts": {
+    "hint": "Tip: Press / or Ctrl+F to focus search · Escape to clear"
+  },
+  "settings": {
+    "title": "Settings",
+    "tooltip": "Settings",
+    "saved": "Settings saved",
+    "itemsPerPage": "Games per page",
+    "itemsPerPageDesc": "How many games to show per page (10–200).",
+    "autoStop": "Auto-stop games",
+    "autoStopDesc": "Automatically stop simulated games after the timer expires.",
+    "autoStopMinutes": "Stop after",
+    "minutes": "minutes",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "toast": {
     "refreshed": {
@@ -126,4 +161,3 @@
     "noGames": "No games running"
   }
 }
-
