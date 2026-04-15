@@ -28,6 +28,7 @@ struct RunningGame {
 /// State to track all running game processes
 struct AppState {
     running_games: Mutex<HashMap<String, RunningGame>>,
+    minimize_to_tray: Mutex<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -330,6 +331,12 @@ fn get_running_games(state: tauri::State<'_, AppState>) -> Result<Vec<String>, S
 }
 
 #[tauri::command]
+fn set_minimize_to_tray(enabled: bool, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    *state.minimize_to_tray.lock().map_err(|e| e.to_string())? = enabled;
+    Ok(())
+}
+
+#[tauri::command]
 fn get_favorites() -> Vec<String> {
     read_favorites().into_iter().collect()
 }
@@ -387,6 +394,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(AppState {
             running_games: Mutex::new(HashMap::new()),
+            minimize_to_tray: Mutex::new(true),
         })
         .setup(|app| {
             let show_item = MenuItem::with_id(app, "show", "Show Disactivity", true, None::<&str>)?;
@@ -451,15 +459,28 @@ pub fn run() {
             get_favorites,
             add_favorite,
             remove_favorite,
-            toggle_favorite
+            toggle_favorite,
+            set_minimize_to_tray
         ])
         .on_window_event(|window, event| {
-            // Intercept the close button — hide to tray instead of quitting.
-            // Actual exit happens via the tray "Quit" menu item, which also
-            // runs cleanup_all_games before calling app.exit(0).
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                let app = window.app_handle();
+                let minimize_to_tray = app
+                    .try_state::<AppState>()
+                    .map(|s| *s.minimize_to_tray.lock().unwrap_or_else(|p| p.into_inner()))
+                    .unwrap_or(true);
+
+                if minimize_to_tray {
+                    // Hide to tray instead of quitting
+                    api.prevent_close();
+                    let _ = window.hide();
+                } else {
+                    // Close directly — clean up running games first
+                    if let Some(state) = app.try_state::<AppState>() {
+                        cleanup_all_games(state.inner());
+                    }
+                    app.exit(0);
+                }
             }
         })
         .run(tauri::generate_context!())

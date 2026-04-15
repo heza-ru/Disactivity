@@ -64,18 +64,51 @@
   "shortcuts": {
     "hint": "Tip: Press / or Ctrl+F to focus search · Escape to clear"
   },
+  "nav": {
+    "home": "Home",
+    "settings": "Settings",
+    "about": "About"
+  },
+  "home": {
+    "recentlyPlayed": "Recently Played"
+  },
   "settings": {
     "title": "Settings",
+    "pageDescription": "Configure how Disactivity behaves.",
     "tooltip": "Settings",
     "saved": "Settings saved",
+    "behavior": "Behavior",
+    "minimizeToTray": "Minimize to tray on close",
+    "minimizeToTrayDesc": "When you close the window, the app hides to the system tray instead of quitting.",
     "itemsPerPage": "Games per page",
     "itemsPerPageDesc": "How many games to show per page (10–200).",
     "autoStop": "Auto-stop games",
     "autoStopDesc": "Automatically stop simulated games after the timer expires.",
     "autoStopMinutes": "Stop after",
+    "autoStopMinutesDesc": "How many minutes before the game simulation stops automatically (1–480).",
     "minutes": "minutes",
+    "display": "Display",
+    "data": "Data & Cache",
+    "cacheAge": "Games list last updated",
+    "cacheRefresh": "Refresh Now",
+    "cacheRefreshing": "Refreshing game list…",
+    "noCacheData": "Not cached yet",
+    "changesApplied": "Changes are applied immediately.",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "about": {
+    "description": "Simulate Discord game activity by running invisible placeholder processes.",
+    "originalCreator": "Original Creator",
+    "originalCreatorRole": "Creator & Author",
+    "featureEnhancer": "Feature Enhancer",
+    "featureEnhancerRole": "Feature Enhancer",
+    "contributors": "Other Contributors",
+    "contributions": "contributions",
+    "viewOnGithub": "View on GitHub",
+    "loadingContributors": "Loading contributors…",
+    "errorContributors": "Could not load contributors from GitHub.",
+    "noOtherContributors": "No other contributors yet."
   },
   "toast": {
     "refreshed": {

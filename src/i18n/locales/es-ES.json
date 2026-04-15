@@ -64,18 +64,51 @@
   "shortcuts": {
     "hint": "Atajo: Pulsa / o Ctrl+F para buscar · Escape para limpiar"
   },
+  "nav": {
+    "home": "Inicio",
+    "settings": "Ajustes",
+    "about": "Acerca de"
+  },
+  "home": {
+    "recentlyPlayed": "Jugado Recientemente"
+  },
   "settings": {
-    "title": "Configuración",
-    "tooltip": "Configuración",
-    "saved": "Configuración guardada",
+    "title": "Ajustes",
+    "pageDescription": "Configura el comportamiento de Disactivity.",
+    "tooltip": "Ajustes",
+    "saved": "Ajustes guardados",
+    "behavior": "Comportamiento",
+    "minimizeToTray": "Minimizar a la bandeja al cerrar",
+    "minimizeToTrayDesc": "Al cerrar la ventana, la aplicación se oculta en la bandeja del sistema en lugar de cerrarse.",
     "itemsPerPage": "Juegos por página",
     "itemsPerPageDesc": "Cuántos juegos mostrar por página (10–200).",
     "autoStop": "Detener juegos automáticamente",
     "autoStopDesc": "Detener los juegos simulados automáticamente cuando el temporizador expire.",
     "autoStopMinutes": "Detener después de",
+    "autoStopMinutesDesc": "Cuántos minutos antes de que la simulación se detenga automáticamente (1–480).",
     "minutes": "minutos",
+    "display": "Visualización",
+    "data": "Datos y Caché",
+    "cacheAge": "Lista de juegos actualizada",
+    "cacheRefresh": "Actualizar Ahora",
+    "cacheRefreshing": "Actualizando lista de juegos…",
+    "noCacheData": "Sin caché aún",
+    "changesApplied": "Los cambios se aplican inmediatamente.",
     "save": "Guardar",
     "cancel": "Cancelar"
+  },
+  "about": {
+    "description": "Simula actividad de juego en Discord ejecutando procesos de marcador de posición invisibles.",
+    "originalCreator": "Creador Original",
+    "originalCreatorRole": "Creador y Autor",
+    "featureEnhancer": "Mejorador de Funciones",
+    "featureEnhancerRole": "Mejorador de Funciones",
+    "contributors": "Otros Colaboradores",
+    "contributions": "contribuciones",
+    "viewOnGithub": "Ver en GitHub",
+    "loadingContributors": "Cargando colaboradores…",
+    "errorContributors": "No se pudieron cargar los colaboradores de GitHub.",
+    "noOtherContributors": "Aún no hay otros colaboradores."
   },
   "toast": {
     "refreshed": {

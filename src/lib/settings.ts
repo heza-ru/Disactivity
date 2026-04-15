@@ -2,6 +2,7 @@ export interface AppSettings {
     autoStopEnabled: boolean
     autoStopMinutes: number
     itemsPerPage: number
+    minimizeToTray: boolean
 }
 
 const SETTINGS_KEY = "disactivity_settings"
@@ -10,6 +11,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     autoStopEnabled: true,
     autoStopMinutes: 15,
     itemsPerPage: 50,
+    minimizeToTray: true,
 }
 
 export function loadSettings(): AppSettings {

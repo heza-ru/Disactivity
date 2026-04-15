@@ -29,7 +29,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { SettingsDialog } from "@/components/settings-dialog"
 import type { Game } from "@/components/game-card"
 import type { AppSettings } from "@/lib/settings"
 
@@ -45,7 +44,6 @@ interface TitleBarProps {
     runningGames?: Map<string, RunningGameInfo>
     onStopGame?: (gameId: string) => void
     settings?: AppSettings
-    onSaveSettings?: (settings: AppSettings) => void
     autoStopMinutes?: number
 }
 
@@ -53,7 +51,6 @@ export function TitleBar({
     runningGames = new Map(),
     onStopGame,
     settings,
-    onSaveSettings,
     autoStopMinutes = 15,
 }: TitleBarProps) {
     const { t } = useTranslation()
@@ -387,11 +384,6 @@ export function TitleBar({
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                )}
-
-                {/* Settings */}
-                {settings && onSaveSettings && (
-                    <SettingsDialog settings={settings} onSave={onSaveSettings} />
                 )}
 
                 <Button variant="secondary" size="icon" onClick={toggleTheme} className="h-8 w-8">
