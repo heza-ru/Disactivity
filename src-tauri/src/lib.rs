@@ -14,6 +14,7 @@ const DISCORD_NON_GAMES_API_URL: &str = "https://discord.com/api/v9/applications
 
 const CACHE_FILE_NAME: &str = "disactivity_games_cache.json";
 const FAVORITES_FILE_NAME: &str = "disactivity_favorites.json";
+const CUSTOM_GAMES_FILE_NAME: &str = "disactivity_custom_games.json";
 const CACHE_EXPIRY_DAYS: i64 = 2;
 
 // Embedded slave executable bytes (built in release mode)
@@ -116,6 +117,90 @@ fn write_favorites(favorites: &HashSet<String>) -> Result<(), String> {
     let content = serde_json::to_string(favorites).map_err(|e| e.to_string())?;
     fs::write(&path, content).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+// Custom games
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct CustomGame {
+    id: String,
+    name: String,
+    executable: String,
+}
+
+fn get_custom_games_path() -> Option<PathBuf> {
+    dirs::config_dir().map(|p| p.join("disactivity").join(CUSTOM_GAMES_FILE_NAME))
+}
+
+fn read_custom_games() -> Vec<CustomGame> {
+    let Some(path) = get_custom_games_path() else { return Vec::new() };
+    let Ok(content) = fs::read_to_string(&path) else { return Vec::new() };
+    serde_json::from_str(&content).unwrap_or_default()
+}
+
+fn write_custom_games(games: &[CustomGame]) -> Result<(), String> {
+    let path = get_custom_games_path().ok_or("Could not determine config directory")?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let content = serde_json::to_string(games).map_err(|e| e.to_string())?;
+    fs::write(&path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn custom_game_to_game(cg: &CustomGame) -> Game {
+    Game {
+        id: cg.id.clone(),
+        name: cg.name.clone(),
+        icon_hash: None,
+        executables: Some(vec![Executable {
+            name: cg.executable.clone(),
+            os: Some("win32".to_string()),
+        }]),
+        aliases: vec![],
+    }
+}
+
+fn generate_custom_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    format!("custom_{}", ms)
+}
+
+#[tauri::command]
+fn get_custom_games() -> Vec<Game> {
+    read_custom_games().iter().map(custom_game_to_game).collect()
+}
+
+#[tauri::command]
+fn add_custom_game(name: String, executable: String) -> Result<Game, String> {
+    if name.trim().is_empty() {
+        return Err("Game name cannot be empty".to_string());
+    }
+    if executable.trim().is_empty() {
+        return Err("Executable name cannot be empty".to_string());
+    }
+
+    let mut games = read_custom_games();
+    let cg = CustomGame {
+        id: generate_custom_id(),
+        name: name.trim().to_string(),
+        executable: executable.trim().to_string(),
+    };
+    let game = custom_game_to_game(&cg);
+    games.push(cg);
+    write_custom_games(&games)?;
+    Ok(game)
+}
+
+#[tauri::command]
+fn remove_custom_game(game_id: String) -> Result<(), String> {
+    let mut games = read_custom_games();
+    games.retain(|g| g.id != game_id);
+    write_custom_games(&games)
 }
 
 async fn fetch_from_api() -> Result<Vec<Game>, String> {
@@ -251,11 +336,57 @@ fn cleanup_game(temp_dir: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// Download the game icon from Discord's CDN and save it as a minimal ICO file.
+/// Returns the path to the saved .ico file, or None if the download fails.
+async fn download_game_icon(game_id: &str, icon_hash: &str, temp_dir: &PathBuf) -> Option<PathBuf> {
+    let url = format!(
+        "https://cdn.discordapp.com/app-icons/{}/{}.png?size=64&keep_aspect_ratio=false",
+        game_id, icon_hash
+    );
+
+    let bytes = reqwest::Client::new()
+        .get(&url)
+        .header("User-Agent", "Disactivity/0.1.0")
+        .send()
+        .await
+        .ok()?
+        .bytes()
+        .await
+        .ok()?;
+
+    let ico = png_to_ico(&bytes);
+    let icon_path = temp_dir.join("icon.ico");
+    fs::write(&icon_path, ico).ok()?;
+    Some(icon_path)
+}
+
+/// Wrap raw PNG bytes in a minimal ICO container (Vista+ format).
+/// Windows Vista and later support PNG-compressed frames inside ICO files.
+fn png_to_ico(png: &[u8]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(22 + png.len());
+    // ICONDIR header
+    buf.extend_from_slice(&[0u8, 0]);       // Reserved
+    buf.extend_from_slice(&[1u8, 0]);       // Type: 1 = ICO
+    buf.extend_from_slice(&[1u8, 0]);       // Count: 1 image
+    // ICONDIRENTRY
+    buf.push(0);                             // Width  (0 = 256)
+    buf.push(0);                             // Height (0 = 256)
+    buf.push(0);                             // ColorCount
+    buf.push(0);                             // Reserved
+    buf.extend_from_slice(&[1u8, 0]);       // Planes
+    buf.extend_from_slice(&[32u8, 0]);      // BitCount
+    buf.extend_from_slice(&(png.len() as u32).to_le_bytes()); // BytesInRes
+    buf.extend_from_slice(&22u32.to_le_bytes());              // ImageOffset (6 + 16)
+    buf.extend_from_slice(png);
+    buf
+}
+
 #[tauri::command]
-fn start_game(
+async fn start_game(
     game_id: String,
     executables: Vec<Executable>,
     selected_executable: Option<String>,
+    icon_hash: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     // Check if game is already running
@@ -277,24 +408,27 @@ fn start_game(
     // Setup the executable in temp directory
     let (temp_dir, final_exe_path) = setup_game_executable(&game_id, &exe_path)?;
 
-    // Start the process
-    let process = Command::new(&final_exe_path)
-        .spawn()
-        .map_err(|e| {
-            // Cleanup on failure
-            let _ = cleanup_game(&temp_dir);
-            format!("Failed to start process: {}", e)
-        })?;
+    // Download the game icon if we have a hash; pass its path to the slave as argv[1]
+    let icon_path = if let Some(ref hash) = icon_hash {
+        download_game_icon(&game_id, hash, &temp_dir).await
+    } else {
+        None
+    };
+
+    // Start the process, optionally passing the icon path as the first argument
+    let mut cmd = Command::new(&final_exe_path);
+    if let Some(ref path) = icon_path {
+        cmd.arg(path.to_string_lossy().as_ref());
+    }
+
+    let process = cmd.spawn().map_err(|e| {
+        let _ = cleanup_game(&temp_dir);
+        format!("Failed to start process: {}", e)
+    })?;
 
     // Store the running game
     let mut running = state.running_games.lock().map_err(|e| e.to_string())?;
-    running.insert(
-        game_id.clone(),
-        RunningGame {
-            process,
-            temp_dir,
-        },
-    );
+    running.insert(game_id.clone(), RunningGame { process, temp_dir });
 
     Ok(final_exe_path.to_string_lossy().to_string())
 }
@@ -460,7 +594,10 @@ pub fn run() {
             add_favorite,
             remove_favorite,
             toggle_favorite,
-            set_minimize_to_tray
+            set_minimize_to_tray,
+            get_custom_games,
+            add_custom_game,
+            remove_custom_game
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

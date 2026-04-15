@@ -8,11 +8,11 @@ use std::path::Path;
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, LoadIconW,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, LoadIconW, LoadImageW,
     RegisterClassW, ShowWindow, TranslateMessage, CS_HREDRAW, CS_VREDRAW, MSG,
     SW_SHOWMINNOACTIVE, WNDCLASSW, WS_EX_APPWINDOW, WS_EX_NOACTIVATE,
     WS_OVERLAPPEDWINDOW, WS_POPUP, WM_CLOSE, WM_DESTROY, WM_QUERYENDSESSION,
-    WM_ENDSESSION,
+    WM_ENDSESSION, IMAGE_ICON, LR_LOADFROMFILE,
 };
 
 /// Convert a Rust string to a null-terminated wide string for Windows API
@@ -37,14 +37,29 @@ fn main() {
         .and_then(|s| s.to_str())
         .unwrap_or("DisactivitySlave");
 
+    // Optional first argument: path to a .ico file to use as the window/taskbar icon
+    let icon_file: Option<Vec<u16>> = env::args().nth(1).map(|p| to_wide_string(&p));
+
     let class_name = to_wide_string("DisactivitySlaveClass");
     let window_title = to_wide_string(exe_name);
 
     unsafe {
         let hinstance = GetModuleHandleW(null_mut());
 
-        // Load the icon embedded by build.rs (winresource assigns resource ID 1)
-        let hicon = LoadIconW(hinstance, 1usize as *const u16);
+        // Try loading the game icon from the provided path; fall back to the embedded resource
+        let hicon = if let Some(ref wide_path) = icon_file {
+            let h = LoadImageW(
+                0,                   // NULL hinstance — loading from file
+                wide_path.as_ptr(),
+                IMAGE_ICON,
+                0,                   // desired width  (0 = system default)
+                0,                   // desired height (0 = system default)
+                LR_LOADFROMFILE,
+            );
+            if h != 0 { h } else { LoadIconW(hinstance, 1usize as *const u16) }
+        } else {
+            LoadIconW(hinstance, 1usize as *const u16)
+        };
 
         let wc = WNDCLASSW {
             style: CS_HREDRAW | CS_VREDRAW,
@@ -87,4 +102,3 @@ fn main() {
         }
     }
 }
-

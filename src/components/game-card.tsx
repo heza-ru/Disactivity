@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
-import { Play, Square, Loader2, Star, ChevronDown, ExternalLink, Copy, Check } from "lucide-react"
+import { Play, Square, Loader2, Star, ChevronDown, ExternalLink, Copy, Check, Trash2 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
     DropdownMenu,
@@ -34,9 +34,11 @@ interface GameCardProps {
     startTime?: number
     autoStopEnabled?: boolean
     autoStopMinutes?: number
+    isCustom?: boolean
     onStart: (game: Game, selectedExecutable?: string) => void
     onStop: (gameId: string) => void
     onToggleFavorite: (gameId: string) => void
+    onDelete?: (gameId: string) => void
 }
 
 function getGameIconUrl(game: Game, size: number = 64): string {
@@ -64,9 +66,11 @@ export function GameCard({
     startTime,
     autoStopEnabled = true,
     autoStopMinutes = 15,
+    isCustom = false,
     onStart,
     onStop,
     onToggleFavorite,
+    onDelete,
 }: GameCardProps) {
     const { t } = useTranslation()
     const [elapsed, setElapsed] = useState(0)
@@ -160,6 +164,11 @@ export function GameCard({
                         >
                             {game.name}
                         </button>
+                        {isCustom && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground font-medium whitespace-nowrap shrink-0">
+                                {t("gameCard.custom")}
+                            </span>
+                        )}
                         {isRunning && (
                             <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 font-medium whitespace-nowrap shrink-0">
                                 {formatElapsedTime(elapsed)}
@@ -223,21 +232,32 @@ export function GameCard({
                                 size="icon"
                                 variant="ghost"
                                 className="shrink-0 h-8 w-8"
-                                onClick={() => onToggleFavorite(game.id)}
-                                aria-label={isFavorite ? t("favorites.remove") : t("favorites.add")}
-                                aria-pressed={isFavorite}
+                                onClick={() => isCustom ? onDelete?.(game.id) : onToggleFavorite(game.id)}
+                                aria-label={
+                                    isCustom
+                                        ? t("gameCard.deleteCustom")
+                                        : isFavorite ? t("favorites.remove") : t("favorites.add")
+                                }
+                                aria-pressed={isCustom ? undefined : isFavorite}
                             >
-                                <Star
-                                    className={`h-4 w-4 transition-colors ${
-                                        isFavorite
-                                            ? "fill-yellow-500 text-yellow-500"
-                                            : "text-muted-foreground hover:text-yellow-500"
-                                    }`}
-                                />
+                                {isCustom ? (
+                                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
+                                ) : (
+                                    <Star
+                                        className={`h-4 w-4 transition-colors ${
+                                            isFavorite
+                                                ? "fill-yellow-500 text-yellow-500"
+                                                : "text-muted-foreground hover:text-yellow-500"
+                                        }`}
+                                    />
+                                )}
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent side="top">
-                            {isFavorite ? t("favorites.remove") : t("favorites.add")}
+                            {isCustom
+                                ? t("gameCard.deleteCustom")
+                                : isFavorite ? t("favorites.remove") : t("favorites.add")
+                            }
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>

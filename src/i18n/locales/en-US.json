@@ -33,7 +33,18 @@
     "id": "ID",
     "copyId": "Copy ID",
     "copied": "Copied!",
-    "selectExecutable": "Select executable"
+    "selectExecutable": "Select executable",
+    "custom": "Custom",
+    "addCustom": "Add custom game",
+    "addCustomConfirm": "Add game",
+    "customName": "Game name",
+    "customNamePlaceholder": "e.g. My Game",
+    "customExe": "Executable name",
+    "customExePlaceholder": "e.g. mygame.exe",
+    "customExeHint": "The exact .exe filename Discord would detect when the process is running.",
+    "customAdded": "Custom game added",
+    "customDeleted": "Custom game removed",
+    "deleteCustom": "Remove custom game"
   },
   "gameDetails": {
     "open": "View details for {{name}}",

@@ -44,6 +44,7 @@ export default function App() {
     const { t } = useTranslation()
     const [activePage, setActivePage] = useState<AppPage>("home")
     const [games, setGames] = useState<Game[]>([])
+    const [customGames, setCustomGames] = useState<Game[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [runningGames, setRunningGames] = useState<Set<string>>(new Set())
@@ -53,8 +54,11 @@ export default function App() {
     const [settings, setSettings] = useState<AppSettings>(loadSettings)
     const [recentlyPlayed, setRecentlyPlayed] = useState<RecentGame[]>(loadRecentlyPlayed)
 
+    // Merge API games with custom games (custom first so they appear at the top of the list)
+    const allGames = useMemo(() => [...customGames, ...games], [customGames, games])
+
     // O(1) game lookup
-    const gamesById = useMemo(() => new Map(games.map((g) => [g.id, g])), [games])
+    const gamesById = useMemo(() => new Map(allGames.map((g) => [g.id, g])), [allGames])
 
     // Sync minimizeToTray to Rust on startup
     useEffect(() => {
@@ -114,10 +118,32 @@ export default function App() {
         }
     }, [])
 
+    const fetchCustomGames = useCallback(async () => {
+        try {
+            const cgs = await invoke<Game[]>("get_custom_games")
+            setCustomGames(cgs)
+        } catch (error) {
+            console.error("Failed to load custom games:", error)
+        }
+    }, [])
+
+    const handleAddCustomGame = useCallback(async (name: string, executable: string) => {
+        const game = await invoke<Game>("add_custom_game", { name, executable })
+        setCustomGames((prev) => [...prev, game])
+        toast.success(t("gameCard.customAdded"), { description: game.name })
+    }, [t])
+
+    const handleDeleteCustomGame = useCallback(async (gameId: string) => {
+        await invoke("remove_custom_game", { gameId })
+        setCustomGames((prev) => prev.filter((g) => g.id !== gameId))
+        toast.success(t("gameCard.customDeleted"))
+    }, [t])
+
     useEffect(() => {
         fetchGames().catch(console.error)
         fetchFavorites().catch(console.error)
-    }, [fetchGames, fetchFavorites])
+        fetchCustomGames().catch(console.error)
+    }, [fetchGames, fetchFavorites, fetchCustomGames])
 
     const handleStartGame = useCallback(
         async (game: Game, selectedExecutable?: string) => {
@@ -135,6 +161,7 @@ export default function App() {
                     gameId: game.id,
                     executables: game.executables,
                     selectedExecutable: selectedExecutable || null,
+                    iconHash: game.icon_hash || null,
                 })
 
                 setRunningGames((prev) => new Set(prev).add(game.id))
@@ -305,7 +332,8 @@ export default function App() {
 
                 {activePage === "home" && (
                     <HomePage
-                        games={games}
+                        games={allGames}
+                        customGameIds={customGames.map((g) => g.id)}
                         isLoading={isLoading}
                         isRefreshing={isRefreshing}
                         runningGames={runningGames}
@@ -321,6 +349,8 @@ export default function App() {
                         onToggleFavorite={handleToggleFavorite}
                         onImportFavorites={handleImportFavorites}
                         onExportFavorites={handleExportFavorites}
+                        onAddCustomGame={handleAddCustomGame}
+                        onDeleteCustomGame={handleDeleteCustomGame}
                         fetchFavorites={fetchFavorites}
                     />
                 )}

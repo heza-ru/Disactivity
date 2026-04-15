@@ -13,32 +13,13 @@ interface GitHubContributor {
     contributions: number
 }
 
-const FEATURE_ENHANCER_FEATURES = [
-    "Windows-style window controls (minimize / maximize / close)",
-    "Running games task manager with auto-stop countdown timer",
-    "System tray with hide-to-tray and tray menu",
-    "Live debounced search (no button needed)",
-    "Multi-page navigation (Home, Settings, About)",
-    "Game details dialog with executable selection",
-    "Import / export favorites as JSON",
-    "Keyboard shortcuts (/ or Ctrl+F, Escape)",
-    "Copy game ID to clipboard",
-    "Image lazy loading with skeleton placeholders",
-    "Card fade-in animations and badge pulse",
-    "Settings page with all configurable options",
-    "About page with GitHub contributor profiles",
-    "Slave process taskbar icon via embedded resource",
-    "Zombie-process guard before killing child processes",
-]
-
 function ContributorCard({
     login,
     avatar_url,
     html_url,
     contributions,
     role,
-    features,
-}: GitHubContributor & { role?: string; features?: string[] }) {
+}: GitHubContributor & { role?: string }) {
     const { t } = useTranslation()
 
     return (
@@ -58,16 +39,6 @@ function ContributorCard({
                     {contributions} {t("about.contributions", { count: contributions })}
                 </p>
             </div>
-            {features && features.length > 0 && (
-                <ul className="w-full mt-1 space-y-1 text-left">
-                    {features.map((f) => (
-                        <li key={f} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                            <Zap className="h-3 w-3 text-primary shrink-0 mt-0.5" />
-                            {f}
-                        </li>
-                    ))}
-                </ul>
-            )}
             <a
                 href={html_url}
                 target="_blank"
@@ -97,20 +68,15 @@ export function AboutPage() {
                 return r.json() as Promise<GitHubContributor[]>
             })
             .then((data) => {
-                // Exclude heza-ru from the contributors list (shown separately as Feature Enhancer)
+                // heza-ru shown separately; exclude from the general list
                 setContributors(data.filter((c) => c.login.toLowerCase() !== "heza-ru"))
             })
             .catch((e) => setError(String(e)))
             .finally(() => setIsLoading(false))
     }, [])
 
-    // Separate holasoyender as original creator
-    const originalCreator = contributors.find(
-        (c) => c.login.toLowerCase() === "holasoyender"
-    )
-    const otherContributors = contributors.filter(
-        (c) => c.login.toLowerCase() !== "holasoyender"
-    )
+    const originalCreator = contributors.find((c) => c.login.toLowerCase() === "holasoyender")
+    const otherContributors = contributors.filter((c) => c.login.toLowerCase() !== "holasoyender")
 
     return (
         <ScrollArea className="flex-1 mt-20">
@@ -141,10 +107,7 @@ export function AboutPage() {
                         </div>
                     ) : originalCreator ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <ContributorCard
-                                {...originalCreator}
-                                role={t("about.originalCreatorRole")}
-                            />
+                            <ContributorCard {...originalCreator} role={t("about.originalCreatorRole")} />
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -167,14 +130,13 @@ export function AboutPage() {
                             {t("about.featureEnhancer")}
                         </h2>
                     </div>
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <ContributorCard
                             login="heza-ru"
                             avatar_url="https://github.com/heza-ru.png"
                             html_url="https://github.com/heza-ru"
-                            contributions={FEATURE_ENHANCER_FEATURES.length}
+                            contributions={0}
                             role={t("about.featureEnhancerRole")}
-                            features={FEATURE_ENHANCER_FEATURES}
                         />
                     </div>
                 </section>

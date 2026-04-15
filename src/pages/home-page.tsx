@@ -5,6 +5,13 @@ import { useTranslation } from "react-i18next"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog"
+import {
     Search,
     RefreshCw,
     Gamepad2,
@@ -13,6 +20,7 @@ import {
     Download,
     Upload,
     Clock,
+    Plus,
 } from "lucide-react"
 import { GameCard, type Game } from "@/components/game-card"
 import { Separator } from "@/components/ui/separator"
@@ -36,6 +44,7 @@ export interface RecentGame {
 
 interface HomePageProps {
     games: Game[]
+    customGameIds: string[]
     isLoading: boolean
     isRefreshing: boolean
     runningGames: Set<string>
@@ -51,11 +60,14 @@ interface HomePageProps {
     onToggleFavorite: (gameId: string) => Promise<void>
     onImportFavorites: (e: React.ChangeEvent<HTMLInputElement>) => void
     onExportFavorites: () => void
+    onAddCustomGame: (name: string, executable: string) => Promise<void>
+    onDeleteCustomGame: (gameId: string) => Promise<void>
     fetchFavorites: () => Promise<void>
 }
 
 export function HomePage({
     games,
+    customGameIds,
     isLoading,
     isRefreshing,
     runningGames,
@@ -71,13 +83,20 @@ export function HomePage({
     onToggleFavorite,
     onImportFavorites,
     onExportFavorites,
+    onAddCustomGame,
+    onDeleteCustomGame,
 }: HomePageProps) {
     const { t } = useTranslation()
     const [searchQuery, setSearchQuery] = useState("")
     const [filteredGames, setFilteredGames] = useState<Game[]>([])
     const [currentPage, setCurrentPage] = useState(1)
+    const [addDialogOpen, setAddDialogOpen] = useState(false)
+    const [newGameName, setNewGameName] = useState("")
+    const [newGameExe, setNewGameExe] = useState("")
+    const [isAdding, setIsAdding] = useState(false)
     const searchRef = useRef<HTMLInputElement>(null)
     const importFileRef = useRef<HTMLInputElement>(null)
+    const customGameIdSet = useMemo(() => new Set(customGameIds), [customGameIds])
 
     const ITEMS_PER_PAGE = settings.itemsPerPage
 
@@ -146,6 +165,19 @@ export function HomePage({
     const handleRefresh = () => {
         setSearchQuery("")
         onRefresh()
+    }
+
+    const handleAddDialogSubmit = async () => {
+        if (!newGameName.trim() || !newGameExe.trim()) return
+        setIsAdding(true)
+        try {
+            await onAddCustomGame(newGameName.trim(), newGameExe.trim())
+            setNewGameName("")
+            setNewGameExe("")
+            setAddDialogOpen(false)
+        } finally {
+            setIsAdding(false)
+        }
     }
 
     const { favoriteGames, nonFavoriteGames } = useMemo(() => {
@@ -271,6 +303,22 @@ export function HomePage({
                                 aria-label={t("search.placeholder")}
                             />
                         </div>
+                        <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setAddDialogOpen(true)}
+                                        className="bg-background shrink-0"
+                                        aria-label={t("gameCard.addCustom")}
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">{t("gameCard.addCustom")}</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                         <Button
                             variant="outline"
                             onClick={handleRefresh}
@@ -286,6 +334,56 @@ export function HomePage({
                             {t("actions.refresh")}
                         </Button>
                     </div>
+
+                    {/* Add Custom Game Dialog */}
+                    <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>{t("gameCard.addCustom")}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-2">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-foreground" htmlFor="custom-name">
+                                        {t("gameCard.customName")}
+                                    </label>
+                                    <Input
+                                        id="custom-name"
+                                        placeholder={t("gameCard.customNamePlaceholder")}
+                                        value={newGameName}
+                                        onChange={(e) => setNewGameName(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") handleAddDialogSubmit() }}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-foreground" htmlFor="custom-exe">
+                                        {t("gameCard.customExe")}
+                                    </label>
+                                    <Input
+                                        id="custom-exe"
+                                        placeholder={t("gameCard.customExePlaceholder")}
+                                        value={newGameExe}
+                                        onChange={(e) => setNewGameExe(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") handleAddDialogSubmit() }}
+                                        className="font-mono"
+                                    />
+                                    <p className="text-xs text-muted-foreground">{t("gameCard.customExeHint")}</p>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                                    {t("settings.cancel")}
+                                </Button>
+                                <Button
+                                    onClick={handleAddDialogSubmit}
+                                    disabled={!newGameName.trim() || !newGameExe.trim() || isAdding}
+                                >
+                                    {isAdding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                                    {t("gameCard.addCustomConfirm")}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
 
                     {/* Loading State */}
                     {isLoading ? (
@@ -357,9 +455,11 @@ export function HomePage({
                                                 startTime={gameStartTimes.get(game.id)}
                                                 autoStopEnabled={settings.autoStopEnabled}
                                                 autoStopMinutes={settings.autoStopMinutes}
+                                                isCustom={customGameIdSet.has(game.id)}
                                                 onStart={onStartGame}
                                                 onStop={onStopGame}
                                                 onToggleFavorite={onToggleFavorite}
+                                                onDelete={onDeleteCustomGame}
                                             />
                                         ))}
                                     </div>
@@ -415,9 +515,11 @@ export function HomePage({
                                             startTime={gameStartTimes.get(game.id)}
                                             autoStopEnabled={settings.autoStopEnabled}
                                             autoStopMinutes={settings.autoStopMinutes}
+                                            isCustom={customGameIdSet.has(game.id)}
                                             onStart={onStartGame}
                                             onStop={onStopGame}
                                             onToggleFavorite={onToggleFavorite}
+                                            onDelete={onDeleteCustomGame}
                                         />
                                     ))
                                 ) : filteredGames.length === 0 ? (

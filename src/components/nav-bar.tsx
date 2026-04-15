@@ -23,7 +23,7 @@ export function NavBar({ currentPage, onNavigate }: NavBarProps) {
 
     return (
         <nav
-            className="fixed top-10 left-0 right-0 z-40 flex items-stretch h-10 bg-background/80 backdrop-blur-xl border-b border-border/50 select-none"
+            className="fixed top-10 left-0 right-0 z-40 flex items-stretch justify-center h-10 bg-background/80 backdrop-blur-xl border-b border-border/50 select-none"
             role="tablist"
             aria-label="Application navigation"
         >
