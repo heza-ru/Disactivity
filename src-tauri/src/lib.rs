@@ -1368,13 +1368,8 @@ pub struct NowPlaying {
 
 #[cfg(windows)]
 fn get_window_entries() -> Vec<(String, String)> {
-    use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM, TRUE, CloseHandle};
-    use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GetWindowTextW, IsWindowVisible, GetWindowThreadProcessId,
-    };
-    use windows_sys::Win32::System::Threading::{
-        OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
-    };
+    use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM};
+    use windows_sys::Win32::UI::WindowsAndMessaging::EnumWindows;
 
     let mut results: Vec<(String, String)> = Vec::new();
     let ptr = &mut results as *mut Vec<(String, String)> as isize;
@@ -1404,7 +1399,7 @@ fn get_window_entries() -> Vec<(String, String)> {
         if pid == 0 { return TRUE; }
 
         let hproc = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
-        if hproc == 0 { return TRUE; }
+        if hproc.is_null() { return TRUE; }
 
         let mut name_buf = [0u16; 260];
         let mut name_size = name_buf.len() as u32;
@@ -2129,13 +2124,8 @@ pub fn run() {
             // Apply Mica backdrop on Windows 11; no-op on other platforms
             #[cfg(target_os = "windows")]
             if let Some(win) = app.get_webview_window("main") {
-                use tauri::window::Effect;
-                let _ = win.set_effects(tauri::window::EffectsConfig {
-                    effects: vec![Effect::Mica],
-                    state: None,
-                    radius: None,
-                    color: None,
-                });
+                use tauri::window::{Effect, EffectsBuilder};
+                let _ = win.set_effects(EffectsBuilder::new().effect(Effect::Mica).build());
             }
 
             let show_item = MenuItem::with_id(app, "show", "Show Disactivity", true, None::<&str>)?;
