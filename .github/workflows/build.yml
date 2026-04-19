@@ -31,11 +31,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Disable Application Control Policy (Windows)
+      - name: Remove WDAC policies (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy" /v "VerifiedAndReputablePolicyState" /t REG_DWORD /d 0 /f
+          $policies = (CiTool --list-policies -json | ConvertFrom-Json).Policies
+          foreach ($policy in $policies) {
+            if (-not $policy.IsSystemPolicy) {
+              CiTool --remove-policy $policy.PolicyID
+            }
+          }
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -94,11 +99,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Disable Application Control Policy (Windows)
+      - name: Remove WDAC policies (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy" /v "VerifiedAndReputablePolicyState" /t REG_DWORD /d 0 /f
+          $policies = (CiTool --list-policies -json | ConvertFrom-Json).Policies
+          foreach ($policy in $policies) {
+            if (-not $policy.IsSystemPolicy) {
+              CiTool --remove-policy $policy.PolicyID
+            }
+          }
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
