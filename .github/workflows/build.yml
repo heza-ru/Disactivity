@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2022
             target: x86_64-pc-windows-msvc
             artifact: slave.exe
             out: slave/target/release/slave.exe
@@ -56,7 +56,7 @@ jobs:
           if [ -f "src-tauri/${{ matrix.out }}" ]; then
             cp "src-tauri/${{ matrix.out }}" "artifacts/${{ matrix.artifact }}"
           else
-            cp "src-tauri/slave/target/${{ matrix.target }}/release/slave${{ matrix.os == 'windows-latest' && '.exe' || '' }}" "artifacts/${{ matrix.artifact }}"
+            cp "src-tauri/slave/target/${{ matrix.target }}/release/slave${{ matrix.os == 'windows-2022' && '.exe' || '' }}" "artifacts/${{ matrix.artifact }}"
           fi
 
       - name: Upload slave artifact
@@ -72,8 +72,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
-            slave-artifact: slave-windows-latest
+          - os: windows-2022
+            slave-artifact: slave-windows-2022
             slave-src: slave.exe
             slave-dst: src-tauri/slave/target/release/slave.exe
           - os: macos-latest
