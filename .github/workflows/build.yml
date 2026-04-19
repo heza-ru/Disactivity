@@ -31,6 +31,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Disable Application Control Policy (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy" /v "VerifiedAndReputablePolicyState" /t REG_DWORD /d 0 /f
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -87,6 +93,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Disable Application Control Policy (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy" /v "VerifiedAndReputablePolicyState" /t REG_DWORD /d 0 /f
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
