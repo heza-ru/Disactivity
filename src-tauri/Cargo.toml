@@ -34,8 +34,8 @@ chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"
 tempfile = "3"
 keyring = "2"
-tauri-plugin-updater = "2.9.0"
-tauri-plugin-process = "2.3.1"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
