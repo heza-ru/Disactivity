@@ -1,9 +1,9 @@
 "use client"
 
-import { Home, Settings, Info } from "lucide-react"
+import { Home, Settings, Info, Smartphone } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-export type AppPage = "home" | "settings" | "about"
+export type AppPage = "home" | "settings" | "about" | "remote"
 
 interface NavBarProps {
     currentPage: AppPage
@@ -13,6 +13,7 @@ interface NavBarProps {
 const TABS: { id: AppPage; icon: React.FC<{ className?: string }>; labelKey: string }[] = [
     { id: "home", icon: Home, labelKey: "nav.home" },
     { id: "settings", icon: Settings, labelKey: "nav.settings" },
+    { id: "remote", icon: Smartphone, labelKey: "nav.remote" },
     { id: "about", icon: Info, labelKey: "nav.about" },
 ]
 

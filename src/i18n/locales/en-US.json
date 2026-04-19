@@ -12,7 +12,7 @@
     "stop": "Stop"
   },
   "loading": {
-    "games": "Loading games from Discord..."
+    "games": "Loading games..."
   },
   "favorites": {
     "title": "Favorites",
@@ -41,7 +41,7 @@
     "customNamePlaceholder": "e.g. My Game",
     "customExe": "Executable name",
     "customExePlaceholder": "e.g. mygame.exe",
-    "customExeHint": "The exact .exe filename Discord would detect when the process is running.",
+    "customExeHint": "The exact .exe filename that will be detected when the process is running.",
     "customAdded": "Custom game added",
     "customDeleted": "Custom game removed",
     "deleteCustom": "Remove custom game"
@@ -51,7 +51,11 @@
     "aliases": "Aliases",
     "win32Executables": "Windows Executables",
     "otherExecutables": "Other Executables",
-    "noExecutables": "No executables defined for this game."
+    "noExecutables": "No executables defined for this game.",
+    "genres": "Genres",
+    "platforms": "Platforms",
+    "description": "Description",
+    "loadingMeta": "Loading metadata…"
   },
   "pagination": {
     "label": "Page navigation",
@@ -78,10 +82,46 @@
   "nav": {
     "home": "Home",
     "settings": "Settings",
+    "remote": "Remote",
     "about": "About"
   },
+  "remote": {
+    "title": "Mobile Remote",
+    "description": "Control Disactivity from your phone or tablet on the same Wi-Fi network. Open the address below in any browser, or use the Disactivity mobile app.",
+    "enable": "Enable",
+    "disable": "Disable",
+    "running": "Server running",
+    "stopped": "Server stopped",
+    "started": "Remote server started",
+    "port": "Port",
+    "pin": "PIN (optional)",
+    "pinPlaceholder": "4-digit PIN",
+    "connectFrom": "Connect from your device",
+    "connectHint": "Open this address in a browser on your phone, or scan the QR code with the Disactivity mobile app. Devices must be on the same Wi-Fi network or Bluetooth PAN.",
+    "copy": "Copy"
+  },
   "home": {
-    "recentlyPlayed": "Recently Played"
+    "recentlyPlayed": "Recently Played",
+    "allGames": "All Games"
+  },
+  "discovery": {
+    "trending": "Trending Now",
+    "newReleases": "New Releases",
+    "setupTitle": "Unlock Game Discovery",
+    "setupDesc": "Trending and new releases are powered by FreeToGame. Add a RAWG API key in Advanced settings for higher-quality data.",
+    "configure": "Configure"
+  },
+  "apiKeys": {
+    "title": "API & Discovery",
+    "rawgKey": "RAWG API Key",
+    "rawgKeyDesc": "Powers trending and new release sections. Get a free key at rawg.io.",
+    "igdbTitle": "IGDB (Game Metadata)",
+    "igdbClientId": "Client ID",
+    "igdbClientSecret": "Client Secret",
+    "igdbDesc": "Adds genres, release dates, ratings and descriptions to game details. Get credentials at dev.twitch.tv.",
+    "save": "Save API Keys",
+    "saved": "API keys saved",
+    "storageNote": "Keys are stored locally in your config directory and never sent to any third-party server."
   },
   "settings": {
     "title": "Settings",
@@ -97,6 +137,10 @@
     "autoStopDesc": "Automatically stop simulated games after the timer expires.",
     "autoStopMinutes": "Stop after",
     "autoStopMinutesDesc": "How many minutes before the game simulation stops automatically (1–480).",
+    "idleStop": "AFK auto-stop",
+    "idleStopDesc": "Stop all running games automatically when your system has been idle (no keyboard/mouse input).",
+    "idleStopMinutes": "Idle threshold",
+    "idleStopMinutesDesc": "Minutes of system inactivity before games are stopped (5–480).",
     "minutes": "minutes",
     "display": "Display",
     "data": "Data & Cache",
@@ -106,10 +150,69 @@
     "noCacheData": "Not cached yet",
     "changesApplied": "Changes are applied immediately.",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "advanced": "Advanced",
+    "mediaWatcher": "Music status passthrough",
+    "mediaWatcherDesc": "Automatically set Discord status to what's playing in Spotify, TIDAL, or YouTube Music.",
+    "ideWatcher": "IDE activity",
+    "ideWatcherDesc": "Show your current file and project in Discord when VS Code or JetBrains IDEs are open.",
+    "mediaClientId": "Music Discord App ID",
+    "mediaClientIdDesc": "Client ID of your Discord application used to display music status.",
+    "ideClientId": "IDE Discord App ID",
+    "ideClientIdDesc": "Client ID of your Discord application used to display IDE activity.",
+    "scheduleWatcher": "Scheduled profiles",
+    "scheduleWatcherDesc": "Automatically switch Discord presence profiles on a time-based schedule."
+  },
+  "schedules": {
+    "title": "Scheduled Profiles",
+    "noProfiles": "No profiles yet. Create one below.",
+    "noSchedules": "No schedules yet.",
+    "addProfile": "New Profile",
+    "addSchedule": "Add Schedule",
+    "profileName": "Profile name",
+    "profileNamePlaceholder": "e.g. Working",
+    "clientId": "Discord App Client ID",
+    "clientIdPlaceholder": "e.g. 1234567890123456789",
+    "details": "Details (top line)",
+    "stateText": "State (bottom line)",
+    "detailsPlaceholder": "e.g. Deep work",
+    "stateTextPlaceholder": "e.g. Do not disturb",
+    "save": "Save",
+    "delete": "Delete",
+    "scheduleLabel": "Label",
+    "scheduleLabelPlaceholder": "e.g. Work hours",
+    "from": "From",
+    "to": "To",
+    "days": "Days",
+    "allDays": "Every day",
+    "enabled": "Enabled",
+    "profile": "Profile",
+    "selectProfile": "Select profile",
+    "sun": "Sun", "mon": "Mon", "tue": "Tue", "wed": "Wed",
+    "thu": "Thu", "fri": "Fri", "sat": "Sat",
+    "activeNow": "Active now",
+    "saved": "Profile saved",
+    "deleted": "Deleted",
+    "addProfileTitle": "Add Profile",
+    "editProfileTitle": "Edit Profile"
+  },
+  "customPresence": {
+    "title": "Custom Rich Presence",
+    "description": "Set a fully custom Discord status using any Discord Application ID. Create an app at discord.com/developers to get a Client ID.",
+    "clientId": "Discord Application Client ID",
+    "clientIdPlaceholder": "e.g. 1234567890123456789",
+    "clientIdHint": "The Application ID from your Discord Developer Portal app.",
+    "details": "Details (top line)",
+    "detailsPlaceholder": "e.g. Playing something cool",
+    "stateText": "State (bottom line)",
+    "stateTextPlaceholder": "e.g. In a match",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "active": "Active",
+    "inactive": "Inactive"
   },
   "about": {
-    "description": "Simulate Discord game activity by running invisible placeholder processes.",
+    "description": "Simulate game activity by running invisible placeholder processes.",
     "originalCreator": "Original Creator",
     "originalCreatorRole": "Creator & Author",
     "featureEnhancer": "Feature Enhancer",
@@ -124,7 +227,7 @@
   "toast": {
     "refreshed": {
       "title": "Refreshed",
-      "description": "Loaded {{count}} games from Discord API."
+      "description": "Loaded {{count}} games."
     },
     "loadedFromCache": {
       "title": "Loaded from cache",

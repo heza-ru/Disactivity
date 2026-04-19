@@ -12,7 +12,7 @@
     "stop": "Detener"
   },
   "loading": {
-    "games": "Cargando juegos desde Discord..."
+    "games": "Cargando juegos..."
   },
   "favorites": {
     "title": "Favoritos",
@@ -41,7 +41,7 @@
     "customNamePlaceholder": "p. ej. Mi Juego",
     "customExe": "Nombre del ejecutable",
     "customExePlaceholder": "p. ej. mijuego.exe",
-    "customExeHint": "El nombre exacto del .exe que Discord detectaría cuando el proceso esté en ejecución.",
+    "customExeHint": "El nombre exacto del .exe que será detectado cuando el proceso esté en ejecución.",
     "customAdded": "Juego personalizado añadido",
     "customDeleted": "Juego personalizado eliminado",
     "deleteCustom": "Eliminar juego personalizado"
@@ -51,7 +51,11 @@
     "aliases": "Alias",
     "win32Executables": "Ejecutables de Windows",
     "otherExecutables": "Otros Ejecutables",
-    "noExecutables": "No hay ejecutables definidos para este juego."
+    "noExecutables": "No hay ejecutables definidos para este juego.",
+    "genres": "Géneros",
+    "platforms": "Plataformas",
+    "description": "Descripción",
+    "loadingMeta": "Cargando metadatos…"
   },
   "pagination": {
     "label": "Navegación de páginas",
@@ -78,10 +82,46 @@
   "nav": {
     "home": "Inicio",
     "settings": "Ajustes",
+    "remote": "Remoto",
     "about": "Acerca de"
   },
+  "remote": {
+    "title": "Control Remoto Móvil",
+    "description": "Controla Disactivity desde tu teléfono o tablet en la misma red Wi-Fi. Abre la dirección en cualquier navegador o usa la app móvil de Disactivity.",
+    "enable": "Activar",
+    "disable": "Desactivar",
+    "running": "Servidor activo",
+    "stopped": "Servidor detenido",
+    "started": "Servidor remoto iniciado",
+    "port": "Puerto",
+    "pin": "PIN (opcional)",
+    "pinPlaceholder": "PIN de 4 dígitos",
+    "connectFrom": "Conéctate desde tu dispositivo",
+    "connectHint": "Abre esta dirección en el navegador de tu móvil o escanea el código QR con la app móvil de Disactivity. Los dispositivos deben estar en la misma red Wi-Fi o Bluetooth PAN.",
+    "copy": "Copiar"
+  },
   "home": {
-    "recentlyPlayed": "Jugado Recientemente"
+    "recentlyPlayed": "Jugado Recientemente",
+    "allGames": "Todos los Juegos"
+  },
+  "discovery": {
+    "trending": "Tendencias",
+    "newReleases": "Novedades",
+    "setupTitle": "Descubre Juegos",
+    "setupDesc": "Las tendencias y novedades usan FreeToGame. Añade una clave RAWG en los ajustes Avanzados para datos de mayor calidad.",
+    "configure": "Configurar"
+  },
+  "apiKeys": {
+    "title": "API y Descubrimiento",
+    "rawgKey": "Clave API de RAWG",
+    "rawgKeyDesc": "Necesaria para las secciones de tendencias y novedades. Obtén una clave gratuita en rawg.io.",
+    "igdbTitle": "IGDB (Metadatos de Juegos)",
+    "igdbClientId": "Client ID",
+    "igdbClientSecret": "Client Secret",
+    "igdbDesc": "Añade géneros, fechas de lanzamiento, puntuaciones y descripciones en los detalles. Obtén credenciales en dev.twitch.tv.",
+    "save": "Guardar Claves API",
+    "saved": "Claves API guardadas",
+    "storageNote": "Las claves se almacenan localmente en tu directorio de configuración y nunca se envían a ningún servidor externo."
   },
   "settings": {
     "title": "Ajustes",
@@ -97,6 +137,10 @@
     "autoStopDesc": "Detener los juegos simulados automáticamente cuando el temporizador expire.",
     "autoStopMinutes": "Detener después de",
     "autoStopMinutesDesc": "Cuántos minutos antes de que la simulación se detenga automáticamente (1–480).",
+    "idleStop": "Detención por inactividad",
+    "idleStopDesc": "Detener todos los juegos automáticamente cuando el sistema esté inactivo (sin teclado/ratón).",
+    "idleStopMinutes": "Umbral de inactividad",
+    "idleStopMinutesDesc": "Minutos de inactividad del sistema antes de detener los juegos (5–480).",
     "minutes": "minutos",
     "display": "Visualización",
     "data": "Datos y Caché",
@@ -106,10 +150,69 @@
     "noCacheData": "Sin caché aún",
     "changesApplied": "Los cambios se aplican inmediatamente.",
     "save": "Guardar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "advanced": "Avanzado",
+    "mediaWatcher": "Música en estado de Discord",
+    "mediaWatcherDesc": "Mostrar automáticamente en Discord lo que suena en Spotify, TIDAL o YouTube Music.",
+    "ideWatcher": "Actividad del IDE",
+    "ideWatcherDesc": "Mostrar el archivo y proyecto actual en Discord cuando VS Code o IDEs de JetBrains estén abiertos.",
+    "mediaClientId": "ID de App Discord para música",
+    "mediaClientIdDesc": "Client ID de tu aplicación de Discord para mostrar el estado musical.",
+    "ideClientId": "ID de App Discord para IDE",
+    "ideClientIdDesc": "Client ID de tu aplicación de Discord para mostrar la actividad del IDE.",
+    "scheduleWatcher": "Perfiles programados",
+    "scheduleWatcherDesc": "Cambiar automáticamente el perfil de presencia según un horario."
+  },
+  "schedules": {
+    "title": "Perfiles Programados",
+    "noProfiles": "Sin perfiles. Crea uno abajo.",
+    "noSchedules": "Sin horarios.",
+    "addProfile": "Nuevo Perfil",
+    "addSchedule": "Añadir Horario",
+    "profileName": "Nombre del perfil",
+    "profileNamePlaceholder": "p. ej. Trabajando",
+    "clientId": "Client ID de App Discord",
+    "clientIdPlaceholder": "p. ej. 1234567890123456789",
+    "details": "Detalles (línea superior)",
+    "stateText": "Estado (línea inferior)",
+    "detailsPlaceholder": "p. ej. Trabajo profundo",
+    "stateTextPlaceholder": "p. ej. No molestar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "scheduleLabel": "Etiqueta",
+    "scheduleLabelPlaceholder": "p. ej. Horario laboral",
+    "from": "Desde",
+    "to": "Hasta",
+    "days": "Días",
+    "allDays": "Todos los días",
+    "enabled": "Activado",
+    "profile": "Perfil",
+    "selectProfile": "Seleccionar perfil",
+    "sun": "Dom", "mon": "Lun", "tue": "Mar", "wed": "Mié",
+    "thu": "Jue", "fri": "Vie", "sat": "Sáb",
+    "activeNow": "Activo ahora",
+    "saved": "Perfil guardado",
+    "deleted": "Eliminado",
+    "addProfileTitle": "Añadir Perfil",
+    "editProfileTitle": "Editar Perfil"
+  },
+  "customPresence": {
+    "title": "Presencia Rica Personalizada",
+    "description": "Establece un estado de Discord totalmente personalizado usando cualquier ID de aplicación de Discord. Crea una app en discord.com/developers para obtener un Client ID.",
+    "clientId": "ID de Aplicación de Discord",
+    "clientIdPlaceholder": "ej. 1234567890123456789",
+    "clientIdHint": "El ID de aplicación del Portal de Desarrolladores de Discord.",
+    "details": "Detalles (línea superior)",
+    "detailsPlaceholder": "ej. Jugando algo genial",
+    "stateText": "Estado (línea inferior)",
+    "stateTextPlaceholder": "ej. En una partida",
+    "activate": "Activar",
+    "deactivate": "Desactivar",
+    "active": "Activo",
+    "inactive": "Inactivo"
   },
   "about": {
-    "description": "Simula actividad de juego en Discord ejecutando procesos de marcador de posición invisibles.",
+    "description": "Simula actividad de juego ejecutando procesos de marcador de posición invisibles.",
     "originalCreator": "Creador Original",
     "originalCreatorRole": "Creador y Autor",
     "featureEnhancer": "Mejorador de Funciones",
@@ -124,7 +227,7 @@
   "toast": {
     "refreshed": {
       "title": "Actualizado",
-      "description": "Se cargaron {{count}} juegos desde la API de Discord."
+      "description": "Se cargaron {{count}} juegos."
     },
     "loadedFromCache": {
       "title": "Cargado desde caché",

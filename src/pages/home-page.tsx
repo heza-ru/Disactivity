@@ -21,8 +21,12 @@ import {
     Upload,
     Clock,
     Plus,
+    Flame,
+    Sparkles,
+    Settings2,
 } from "lucide-react"
 import { GameCard, type Game } from "@/components/game-card"
+import { DiscoverySection, HeroBanner } from "@/components/discovery-section"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -36,6 +40,8 @@ import {
 } from "@/components/ui/pagination"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { AppSettings } from "@/lib/settings"
+import type { DiscoveryData } from "@/types/discovery"
+import { enrichDiscoveryGames } from "@/lib/game-metadata"
 
 export interface RecentGame {
     id: string
@@ -54,6 +60,9 @@ interface HomePageProps {
     settings: AppSettings
     recentlyPlayed: RecentGame[]
     gamesById: Map<string, Game>
+    discoveryData: DiscoveryData | null
+    isLoadingDiscovery: boolean
+    hasRawgKey: boolean
     onRefresh: () => void
     onStartGame: (game: Game, selectedExecutable?: string) => Promise<void>
     onStopGame: (gameId: string) => Promise<void>
@@ -62,6 +71,7 @@ interface HomePageProps {
     onExportFavorites: () => void
     onAddCustomGame: (name: string, executable: string) => Promise<void>
     onDeleteCustomGame: (gameId: string) => Promise<void>
+    onNavigateToSettings: () => void
     fetchFavorites: () => Promise<void>
 }
 
@@ -77,6 +87,8 @@ export function HomePage({
     settings,
     recentlyPlayed,
     gamesById,
+    discoveryData,
+    hasRawgKey,
     onRefresh,
     onStartGame,
     onStopGame,
@@ -85,6 +97,7 @@ export function HomePage({
     onExportFavorites,
     onAddCustomGame,
     onDeleteCustomGame,
+    onNavigateToSettings,
 }: HomePageProps) {
     const { t } = useTranslation()
     const [searchQuery, setSearchQuery] = useState("")
@@ -106,7 +119,6 @@ export function HomePage({
             ?.scrollTo({ top: 0, behavior: "smooth" })
     }, [])
 
-    // Update filteredGames when games list loads
     useEffect(() => {
         setFilteredGames(games)
         setCurrentPage(1)
@@ -138,7 +150,6 @@ export function HomePage({
         return () => clearTimeout(timer)
     }, [searchQuery, filterGames])
 
-    // Keyboard shortcuts
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             const active = document.activeElement
@@ -237,12 +248,103 @@ export function HomePage({
         return "https://cdn.discordapp.com/embed/avatars/0.png"
     }
 
+    // Enrich RAWG discovery games with Discord game IDs
+    const enrichedTrending = useMemo(() => {
+        if (!discoveryData?.trending.length) return []
+        return enrichDiscoveryGames(discoveryData.trending, gamesById)
+    }, [discoveryData?.trending, gamesById])
+
+    const enrichedNewReleases = useMemo(() => {
+        if (!discoveryData?.new_releases.length) return []
+        return enrichDiscoveryGames(discoveryData.new_releases, gamesById)
+    }, [discoveryData?.new_releases, gamesById])
+
+    // Hero = first trending game that has a background image
+    const heroGame = useMemo(() => {
+        return enrichedTrending.find((g) => g.background_image) ?? null
+    }, [enrichedTrending])
+
+    // Trending strip = rest of trending (after hero)
+    const trendingStrip = useMemo(() => {
+        if (!heroGame) return enrichedTrending
+        return enrichedTrending.filter((g) => g.rawg_id !== heroGame.rawg_id)
+    }, [enrichedTrending, heroGame])
+
+    const hasDiscovery = enrichedTrending.length > 0 || enrichedNewReleases.length > 0
+
     return (
         <ScrollArea className="flex-1 mt-20">
             <main className="mx-5 pb-5 overflow-hidden">
                 <div className="container mx-auto px-4 py-6 max-w-4xl overflow-hidden">
 
-                    {/* Recently Played */}
+                    {/* ── Discovery: Hero + Sections ──────────────────────── */}
+                    {!isLoading && (
+                        <>
+                            {hasDiscovery ? (
+                                <>
+                                    {/* Hero banner */}
+                                    {heroGame && (
+                                        <HeroBanner
+                                            game={heroGame}
+                                            discordGame={heroGame.discordGameId ? gamesById.get(heroGame.discordGameId) : undefined}
+                                            isRunning={!!heroGame.discordGameId && runningGames.has(heroGame.discordGameId)}
+                                            onPlay={onStartGame}
+                                        />
+                                    )}
+
+                                    {/* Trending Now */}
+                                    {trendingStrip.length > 0 && (
+                                        <DiscoverySection
+                                            title={t("discovery.trending")}
+                                            icon={<Flame className="h-4 w-4 text-orange-500" />}
+                                            games={trendingStrip}
+                                            gamesById={gamesById}
+                                            runningGames={runningGames}
+                                            onStartGame={onStartGame}
+                                        />
+                                    )}
+
+                                    {/* New Releases */}
+                                    {enrichedNewReleases.length > 0 && (
+                                        <DiscoverySection
+                                            title={t("discovery.newReleases")}
+                                            icon={<Sparkles className="h-4 w-4 text-blue-500" />}
+                                            games={enrichedNewReleases}
+                                            gamesById={gamesById}
+                                            runningGames={runningGames}
+                                            onStartGame={onStartGame}
+                                        />
+                                    )}
+
+                                    <Separator className="mb-6" />
+                                </>
+                            ) : !hasRawgKey ? (
+                                /* Setup prompt when no RAWG key */
+                                <div className="mb-6 flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3">
+                                    <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground">
+                                            {t("discovery.setupTitle")}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {t("discovery.setupDesc")}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="shrink-0 gap-1.5"
+                                        onClick={onNavigateToSettings}
+                                    >
+                                        <Settings2 className="h-3.5 w-3.5" />
+                                        {t("discovery.configure")}
+                                    </Button>
+                                </div>
+                            ) : null}
+                        </>
+                    )}
+
+                    {/* ── Recently Played ─────────────────────────────────── */}
                     {recentGames.length > 0 && !isLoading && (
                         <div className="mb-6">
                             <div className="flex items-center gap-2 mb-3">
@@ -285,7 +387,7 @@ export function HomePage({
                         </div>
                     )}
 
-                    {/* Search Bar */}
+                    {/* ── Search + Actions ─────────────────────────────────── */}
                     <div className="flex gap-2 mb-6">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -393,7 +495,7 @@ export function HomePage({
                         </div>
                     ) : (
                         <>
-                            {/* Favorites Section */}
+                            {/* ── Favorites Section ──────────────────────────── */}
                             {favoriteGames.length > 0 && (
                                 <div className="mb-4">
                                     <div className="flex items-center gap-2 mb-2">
@@ -502,7 +604,19 @@ export function HomePage({
                                 aria-hidden="true"
                             />
 
-                            {/* Game List */}
+                            {/* ── All Games ──────────────────────────────────── */}
+                            {filteredGames.length > 0 && (
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Gamepad2 className="h-4 w-4 text-muted-foreground" />
+                                    <h2 className="text-sm font-semibold text-foreground">
+                                        {t("home.allGames")}
+                                    </h2>
+                                    <span className="text-xs text-muted-foreground">
+                                        ({filteredGames.length})
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="space-y-1">
                                 {paginatedGames.length > 0 ? (
                                     paginatedGames.map((game) => (
@@ -649,8 +763,7 @@ export function HomePage({
                                 ) : (
                                     <>{t("footer.noGames")}</>
                                 )}
-                                <p>Copyright © 2026 holasoyender</p>
-                                <p className="text-xs opacity-60 mt-0.5">{t("shortcuts.hint")}</p>
+<p className="text-xs opacity-60 mt-0.5">{t("shortcuts.hint")}</p>
                             </div>
                         </>
                     )}

@@ -5,6 +5,7 @@ import type React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { invoke } from "@tauri-apps/api/core"
+import { listen } from "@tauri-apps/api/event"
 import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import type { Game } from "@/components/game-card"
@@ -15,6 +16,8 @@ import { loadSettings, saveSettings, type AppSettings } from "@/lib/settings"
 import { HomePage, type RecentGame } from "@/pages/home-page"
 import { SettingsPage } from "@/pages/settings-page"
 import { AboutPage } from "@/pages/about-page"
+import { RemotePage } from "@/pages/remote-page"
+import type { ApiKeys, DiscoveryData } from "@/types/discovery"
 
 interface FetchGamesResponse {
     games: Game[]
@@ -54,16 +57,84 @@ export default function App() {
     const [settings, setSettings] = useState<AppSettings>(loadSettings)
     const [recentlyPlayed, setRecentlyPlayed] = useState<RecentGame[]>(loadRecentlyPlayed)
 
-    // Merge API games with custom games (custom first so they appear at the top of the list)
+    // Discovery state
+    const [discoveryData, setDiscoveryData] = useState<DiscoveryData | null>(null)
+    const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false)
+    const [hasRawgKey, setHasRawgKey] = useState(false)
+
+    // Merge API games with custom games
     const allGames = useMemo(() => [...customGames, ...games], [customGames, games])
 
     // O(1) game lookup
     const gamesById = useMemo(() => new Map(allGames.map((g) => [g.id, g])), [allGames])
 
-    // Sync minimizeToTray to Rust on startup
+    // Sync settings to Rust on startup
     useEffect(() => {
         invoke("set_minimize_to_tray", { enabled: settings.minimizeToTray }).catch(console.error)
+        invoke("set_idle_stop", {
+            enabled: settings.idleStopEnabled,
+            minutes: settings.idleStopMinutes,
+        }).catch(console.error)
+        invoke("set_schedule_watcher", { enabled: settings.scheduleEnabled }).catch(console.error)
+        invoke("set_media_watcher", { enabled: settings.mediaEnabled }).catch(console.error)
+        invoke("set_ide_watcher", { enabled: settings.ideEnabled }).catch(console.error)
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Re-sync idle stop whenever the relevant settings change
+    useEffect(() => {
+        invoke("set_idle_stop", {
+            enabled: settings.idleStopEnabled,
+            minutes: settings.idleStopMinutes,
+        }).catch(console.error)
+    }, [settings.idleStopEnabled, settings.idleStopMinutes])
+
+    useEffect(() => {
+        invoke("set_schedule_watcher", { enabled: settings.scheduleEnabled }).catch(console.error)
+    }, [settings.scheduleEnabled])
+
+    useEffect(() => {
+        invoke("set_media_watcher", { enabled: settings.mediaEnabled }).catch(console.error)
+    }, [settings.mediaEnabled])
+
+    useEffect(() => {
+        invoke("set_ide_watcher", { enabled: settings.ideEnabled }).catch(console.error)
+    }, [settings.ideEnabled])
+
+    // Listen for backend idle-stop event and immediately clear UI state
+    useEffect(() => {
+        const unlisten = listen("idle-games-stopped", () => {
+            setRunningGames(new Set())
+            setGameStartTimes(new Map())
+        })
+        return () => { unlisten.then((fn) => fn()) }
+    }, [])
+
+    // Poll every 7 seconds to detect games that were stopped externally
+    // (e.g. the user killed slave.exe from Task Manager).
+    useEffect(() => {
+        const poll = async () => {
+            try {
+                const ids = await invoke<string[]>("get_running_games")
+                const liveIds = new Set(ids)
+                setRunningGames(prev => {
+                    const same = prev.size === liveIds.size && [...prev].every(id => liveIds.has(id))
+                    return same ? prev : new Set(liveIds)
+                })
+                setGameStartTimes(prev => {
+                    let changed = false
+                    const next = new Map(prev)
+                    for (const [id] of prev) {
+                        if (!liveIds.has(id)) { next.delete(id); changed = true }
+                    }
+                    return changed ? next : prev
+                })
+            } catch {
+                // ignore transient IPC errors
+            }
+        }
+        const interval = setInterval(poll, 7000)
+        return () => clearInterval(interval)
+    }, [])
 
     const handleSaveSettings = useCallback(
         (next: AppSettings) => {
@@ -109,6 +180,18 @@ export default function App() {
         [t]
     )
 
+    const fetchDiscovery = useCallback(async (forceRefresh = false) => {
+        setIsLoadingDiscovery(true)
+        try {
+            const data = await invoke<DiscoveryData>("fetch_discovery", { forceRefresh })
+            setDiscoveryData(data)
+        } catch (err) {
+            console.error("Discovery fetch failed:", err)
+        } finally {
+            setIsLoadingDiscovery(false)
+        }
+    }, [])
+
     const fetchFavorites = useCallback(async () => {
         try {
             const favs = await invoke<string[]>("get_favorites")
@@ -126,6 +209,14 @@ export default function App() {
             console.error("Failed to load custom games:", error)
         }
     }, [])
+
+    // On startup: load API keys state and always fetch discovery (FreeToGame used when no RAWG key)
+    useEffect(() => {
+        invoke<ApiKeys>("get_api_keys")
+            .then((keys) => setHasRawgKey(!!(keys.rawg_api_key?.trim())))
+            .catch(console.error)
+        fetchDiscovery(false).catch(console.error)
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleAddCustomGame = useCallback(async (name: string, executable: string) => {
         const game = await invoke<Game>("add_custom_game", { name, executable })
@@ -159,6 +250,7 @@ export default function App() {
             try {
                 await invoke<string>("start_game", {
                     gameId: game.id,
+                    gameName: game.name,
                     executables: game.executables,
                     selectedExecutable: selectedExecutable || null,
                     iconHash: game.icon_hash || null,
@@ -319,6 +411,14 @@ export default function App() {
         fetchGames(true).catch(console.error)
     }, [fetchGames])
 
+    const handleDiscoveryRefresh = useCallback(() => {
+        fetchDiscovery(true).catch(console.error)
+        // Re-read whether we now have a key
+        invoke<ApiKeys>("get_api_keys")
+            .then((keys) => setHasRawgKey(!!(keys.rawg_api_key?.trim())))
+            .catch(console.error)
+    }, [fetchDiscovery])
+
     return (
         <ErrorBoundary>
             <div className="h-screen flex flex-col bg-background/90 dark:bg-background/80 backdrop-blur-xl font-sans antialiased overflow-hidden">
@@ -343,6 +443,9 @@ export default function App() {
                         settings={settings}
                         recentlyPlayed={recentlyPlayed}
                         gamesById={gamesById}
+                        discoveryData={discoveryData}
+                        isLoadingDiscovery={isLoadingDiscovery}
+                        hasRawgKey={hasRawgKey}
                         onRefresh={handleRefresh}
                         onStartGame={handleStartGame}
                         onStopGame={handleStopGame}
@@ -351,6 +454,7 @@ export default function App() {
                         onExportFavorites={handleExportFavorites}
                         onAddCustomGame={handleAddCustomGame}
                         onDeleteCustomGame={handleDeleteCustomGame}
+                        onNavigateToSettings={() => setActivePage("settings")}
                         fetchFavorites={fetchFavorites}
                     />
                 )}
@@ -361,9 +465,11 @@ export default function App() {
                         onSaveSettings={handleSaveSettings}
                         onRefreshCache={handleRefresh}
                         isRefreshing={isRefreshing}
+                        onDiscoveryRefresh={handleDiscoveryRefresh}
                     />
                 )}
 
+                {activePage === "remote" && <RemotePage />}
                 {activePage === "about" && <AboutPage />}
 
                 <Toaster />

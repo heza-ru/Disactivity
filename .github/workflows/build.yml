@@ -1,0 +1,224 @@
+name: Build & Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-slave:
+    name: Build slave (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: slave.exe
+            out: slave/target/release/slave.exe
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: slave-macos
+            out: slave/target/release/slave
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: slave-linux
+            out: slave/target/release/slave
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/slave/target
+          key: slave-${{ matrix.os }}-${{ hashFiles('src-tauri/slave/Cargo.lock') }}
+
+      - name: Build slave
+        working-directory: src-tauri/slave
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename artifact
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          if [ -f "src-tauri/${{ matrix.out }}" ]; then
+            cp "src-tauri/${{ matrix.out }}" "artifacts/${{ matrix.artifact }}"
+          else
+            cp "src-tauri/slave/target/${{ matrix.target }}/release/slave${{ matrix.os == 'windows-latest' && '.exe' || '' }}" "artifacts/${{ matrix.artifact }}"
+          fi
+
+      - name: Upload slave artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slave-${{ matrix.os }}
+          path: artifacts/${{ matrix.artifact }}
+
+  build-app:
+    name: Build app (${{ matrix.os }})
+    needs: build-slave
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            slave-artifact: slave-windows-latest
+            slave-src: slave.exe
+            slave-dst: src-tauri/slave/target/release/slave.exe
+          - os: macos-latest
+            slave-artifact: slave-macos-latest
+            slave-src: slave-macos
+            slave-dst: src-tauri/slave/target/release/slave
+          - os: ubuntu-latest
+            slave-artifact: slave-ubuntu-latest
+            slave-src: slave-linux
+            slave-dst: src-tauri/slave/target/release/slave
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node / Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+            patchelf libssl-dev libgtk-3-dev libayatana-appindicator3-dev
+
+      - name: Download pre-built slave
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.slave-artifact }}
+          path: slave-bin
+
+      - name: Place slave binary
+        shell: bash
+        run: |
+          mkdir -p "$(dirname ${{ matrix.slave-dst }})"
+          cp "slave-bin/${{ matrix.slave-src }}" "${{ matrix.slave-dst }}"
+          chmod +x "${{ matrix.slave-dst }}"
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: app-${{ matrix.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS codesigning (optional — set in repo secrets)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Disactivity ${{ github.ref_name }}"
+          releaseBody: "See the CHANGELOG for details."
+          releaseDraft: true
+          prerelease: false
+
+  build-mobile:
+    name: Build mobile (${{ matrix.platform }})
+    needs: build-slave
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - platform: android
+            os: ubuntu-latest
+          - platform: ios
+            os: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node / Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Set up JDK 17 (Android)
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Android SDK
+        if: matrix.platform == 'android'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android Rust targets
+        if: matrix.platform == 'android'
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+
+      - name: Install iOS Rust targets
+        if: matrix.platform == 'ios'
+        run: |
+          rustup target add aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Build Android app
+        if: matrix.platform == 'android'
+        run: |
+          bun tauri android build --apk
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      - name: Build iOS app
+        if: matrix.platform == 'ios'
+        run: |
+          bun tauri ios build
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload Android APK
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: disactivity-android
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+
+      - name: Upload iOS IPA
+        if: matrix.platform == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: disactivity-ios
+          path: src-tauri/gen/apple/**/*.ipa

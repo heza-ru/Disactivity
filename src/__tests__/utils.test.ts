@@ -37,7 +37,7 @@ describe("settings", () => {
     })
 
     it("saveSettings persists and loadSettings restores", () => {
-        const custom: AppSettings = { autoStopEnabled: false, autoStopMinutes: 30, itemsPerPage: 100, minimizeToTray: false }
+        const custom: AppSettings = { autoStopEnabled: false, autoStopMinutes: 30, itemsPerPage: 100, minimizeToTray: false, idleStopEnabled: false, idleStopMinutes: 15, scheduleEnabled: false, mediaEnabled: false, ideEnabled: false }
         saveSettings(custom)
         expect(loadSettings()).toEqual(custom)
     })
