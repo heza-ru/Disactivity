@@ -35,10 +35,22 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $policies = (CiTool --list-policies -json | ConvertFrom-Json).Policies
-          foreach ($policy in $policies) {
-            if (-not $policy.IsSystemPolicy) {
-              CiTool --remove-policy $policy.PolicyID
+          # Remove via CiTool (works for supplemental policies without reboot)
+          try {
+            $policies = (CiTool --list-policies -json | ConvertFrom-Json).Policies
+            foreach ($p in $policies) {
+              $id = $p.PolicyID.Trim('{','}')
+              $id = "{$id}"
+              Write-Host "Removing WDAC policy: $($p.FriendlyName) $id"
+              CiTool --remove-policy $id 2>&1
+            }
+          } catch { Write-Host "CiTool step failed: $_" }
+          # Fallback: delete active policy files directly
+          $dir = "C:\Windows\System32\CodeIntegrity\CiPolicies\Active"
+          if (Test-Path $dir) {
+            Get-ChildItem $dir -Filter "*.cip" | ForEach-Object {
+              Write-Host "Deleting policy file: $($_.Name)"
+              Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
             }
           }
 
@@ -103,10 +115,22 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $policies = (CiTool --list-policies -json | ConvertFrom-Json).Policies
-          foreach ($policy in $policies) {
-            if (-not $policy.IsSystemPolicy) {
-              CiTool --remove-policy $policy.PolicyID
+          # Remove via CiTool (works for supplemental policies without reboot)
+          try {
+            $policies = (CiTool --list-policies -json | ConvertFrom-Json).Policies
+            foreach ($p in $policies) {
+              $id = $p.PolicyID.Trim('{','}')
+              $id = "{$id}"
+              Write-Host "Removing WDAC policy: $($p.FriendlyName) $id"
+              CiTool --remove-policy $id 2>&1
+            }
+          } catch { Write-Host "CiTool step failed: $_" }
+          # Fallback: delete active policy files directly
+          $dir = "C:\Windows\System32\CodeIntegrity\CiPolicies\Active"
+          if (Test-Path $dir) {
+            Get-ChildItem $dir -Filter "*.cip" | ForEach-Object {
+              Write-Host "Deleting policy file: $($_.Name)"
+              Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
             }
           }
 
