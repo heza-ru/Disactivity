@@ -18,7 +18,7 @@ import {
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { relaunch } from "@tauri-apps/plugin-process"
 import { check, Update } from "@tauri-apps/plugin-updater"
-import { Button } from "@/components/ui/button.tsx"
+import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
