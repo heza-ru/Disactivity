@@ -125,22 +125,30 @@ export function HomePage({
     }, [games])
 
     const filterGames = useCallback(
-        (query: string) => {
-            const q = query.toLowerCase().trim()
+        (query: string, scroll = false) => {
+            const terms = query
+                .toLowerCase()
+                .split(",")
+                .map((term) => term.trim())
+                .filter(Boolean)
             setCurrentPage(1)
-            if (!q) {
+            if (terms.length === 0) {
                 setFilteredGames(games)
             } else {
                 setFilteredGames(
-                    games.filter(
-                        (game) =>
-                            game.name.toLowerCase().includes(q) ||
-                            game.id.toLowerCase().includes(q) ||
-                            game.aliases?.some((alias) => alias.toLowerCase().includes(q))
-                    )
+                    games.filter((game) => {
+                        const gameName = game.name.toLowerCase()
+                        const gameId = game.id.toLowerCase()
+                        const gameAliases = game.aliases?.map((alias) => alias.toLowerCase()) || []
+                        return terms.some((term) => {
+                            if (gameName.includes(term)) return true
+                            if (gameId.includes(term)) return true
+                            return gameAliases.some((alias) => alias.includes(term))
+                        })
+                    })
                 )
             }
-            scrollToTop()
+            if (scroll) scrollToTop()
         },
         [games, scrollToTop]
     )

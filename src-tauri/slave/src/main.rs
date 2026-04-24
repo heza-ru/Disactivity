@@ -391,7 +391,7 @@ fn main() {
         .to_string();
 
     let args: Vec<String> = env::args().collect();
-    let icon_path: Option<String> = args.get(1).cloned();
+    let icon_path: Option<String> = args.get(1).filter(|s| !s.is_empty()).cloned();
     // argv[2] = friendly display name (e.g. "Cyberpunk 2077")
     let display_name = args.get(2).cloned().unwrap_or(exe_stem);
 

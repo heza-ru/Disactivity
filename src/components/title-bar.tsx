@@ -266,23 +266,23 @@ export function TitleBar({
     return (
         <header
             data-tauri-drag-region
-            className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-10 px-4 bg-background/80 backdrop-blur-xl border-b border-border/50 select-none"
+            className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-10 px-4 bg-background/80 backdrop-blur-xl border-b border-border/50 select-none max-sm:px-2"
         >
             {/* Title */}
-            <div className="flex items-center gap-2 flex-1" data-tauri-drag-region>
+            <div className="flex items-center gap-2 flex-1 min-w-0" data-tauri-drag-region>
                 <img className="h-5 w-5 pointer-events-none" src="./icon.png" alt="App icon"/>
-                <span className="font-semibold text-sm text-foreground pointer-events-none">Disactivity</span>
+                <span className="font-semibold text-sm text-foreground pointer-events-none truncate max-sm:hidden">Disactivity</span>
             </div>
 
             <div
-                className="flex items-center gap-2 relative z-10"
+                className="flex items-center gap-2 relative z-10 max-sm:gap-1"
                 style={{WebkitAppRegion: 'no-drag'} as React.CSSProperties}
             >
                 {/* Running Games Task Manager */}
                 {runningCount > 0 && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="secondary" size="sm" className="h-8 gap-1.5 px-2">
+                            <Button variant="secondary" size="sm" className="h-8 gap-1.5 px-2 max-sm:h-7 max-sm:px-1.5">
                                 <SquareActivity className="h-4 w-4 text-green-500 animate-pulse" />
                                 <span className="text-xs font-medium">{runningCount}</span>
                             </Button>

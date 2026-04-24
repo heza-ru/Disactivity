@@ -152,3 +152,25 @@ button:hover {
         -ms-overflow-style: none;
     }
 }
+
+/* Thin themed scrollbars for horizontal overflow containers */
+.overflow-x-auto::-webkit-scrollbar {
+    height: 3px;
+}
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: transparent;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background-color: oklch(0.7 0 0 / 0.35);
+    border-radius: 2px;
+}
+.dark .overflow-x-auto::-webkit-scrollbar-thumb {
+    background-color: oklch(0.45 0 0 / 0.5);
+}
+.overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.7 0 0 / 0.35) transparent;
+}
+.dark .overflow-x-auto {
+    scrollbar-color: oklch(0.45 0 0 / 0.5) transparent;
+}

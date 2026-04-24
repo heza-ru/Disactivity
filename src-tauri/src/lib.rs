@@ -67,6 +67,7 @@ struct AppState {
     ide_watcher_shutdown: Mutex<Option<std::sync::mpsc::Sender<()>>>,
     remote_server_shutdown: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     remote_event_tx: Mutex<Option<broadcast::Sender<String>>>,
+    remote_port: Mutex<u16>,
 }
 
 fn lock_or_recover<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -832,6 +833,8 @@ fn discord_ipc_session_inner<S: Read + IoWrite>(
     details: Option<&str>,
     state_text: Option<&str>,
     activity_type: u8,
+    large_image: Option<&str>,
+    slave_pid: Option<u32>,
     shutdown_rx: std::sync::mpsc::Receiver<()>,
 ) {
     if discord_write_frame(pipe, 0, &serde_json::json!({"v": 1, "client_id": client_id})).is_err() {
@@ -846,16 +849,20 @@ fn discord_ipc_session_inner<S: Read + IoWrite>(
         .unwrap_or_default()
         .as_secs()
         .saturating_sub(10);
+    let mut activity_obj = serde_json::json!({
+        "type": activity_type,
+        "timestamps": { "start": start_ts },
+        "details": details.unwrap_or(""),
+        "state": state_text.unwrap_or("via Disactivity"),
+    });
+    if let Some(img) = large_image {
+        activity_obj["assets"] = serde_json::json!({ "large_image": img });
+    }
     let activity = serde_json::json!({
         "cmd": "SET_ACTIVITY",
         "args": {
-            "pid": std::process::id(),
-            "activity": {
-                "type": activity_type,
-                "timestamps": { "start": start_ts },
-                "details": details.unwrap_or(""),
-                "state": state_text.unwrap_or("via Disactivity")
-            }
+            "pid": slave_pid.unwrap_or_else(std::process::id),
+            "activity": activity_obj,
         },
         "nonce": start_ts.to_string()
     });
@@ -877,6 +884,8 @@ fn discord_ipc_session(
     details: Option<String>,
     state_text: Option<String>,
     activity_type: u8,
+    large_image: Option<String>,
+    slave_pid: Option<u32>,
     shutdown_rx: std::sync::mpsc::Receiver<()>,
 ) {
     #[cfg(windows)]
@@ -890,13 +899,12 @@ fn discord_ipc_session(
             Some(p) => p,
             None => return,
         };
-        discord_ipc_session_inner(&mut pipe, &client_id, details.as_deref(), state_text.as_deref(), activity_type, shutdown_rx);
+        discord_ipc_session_inner(&mut pipe, &client_id, details.as_deref(), state_text.as_deref(), activity_type, large_image.as_deref(), slave_pid, shutdown_rx);
     }
 
     #[cfg(unix)]
     {
         use std::os::unix::net::UnixStream;
-        // Candidate directories in priority order
         let dirs: Vec<String> = {
             let mut v = Vec::new();
             if let Ok(d) = std::env::var("XDG_RUNTIME_DIR") { v.push(d.clone()); v.push(format!("{}/snap.discord", d)); }
@@ -910,10 +918,9 @@ fn discord_ipc_session(
             Some(s) => s,
             None => return,
         };
-        discord_ipc_session_inner(&mut sock, &client_id, details.as_deref(), state_text.as_deref(), activity_type, shutdown_rx);
+        discord_ipc_session_inner(&mut sock, &client_id, details.as_deref(), state_text.as_deref(), activity_type, large_image.as_deref(), slave_pid, shutdown_rx);
     }
 
-    // On platforms without Windows or Unix sockets (none currently), do nothing
     #[cfg(not(any(windows, unix)))]
     { let _ = shutdown_rx.recv(); }
 }
@@ -935,7 +942,7 @@ async fn set_custom_presence(
 
     let (tx, rx) = std::sync::mpsc::channel::<()>();
     let cid = client_id.trim().to_string();
-    thread::spawn(move || discord_ipc_session(cid, details, state_text, 0, rx));
+    thread::spawn(move || discord_ipc_session(cid, details, state_text, 0, None, None, rx));
     *lock_or_recover(&state.custom_presence_shutdown) = Some(tx);
     Ok(())
 }
@@ -1064,7 +1071,10 @@ async fn start_game_inner(
     if let Some(name) = game_name { cmd.arg(name); }
 
     let process = cmd.spawn().map_err(|e| {
-        // temp_dir will be auto-deleted when it drops at end of this error path
+        #[cfg(windows)]
+        if e.raw_os_error() == Some(4551) {
+            return "Windows blocked the game helper process (Smart App Control / Application Control Policy).\n\nTo fix: open Windows Security → App & browser control → Smart App Control settings → set to Off, then restart your PC.".to_string();
+        }
         format!("Failed to start process: {}", e)
     })?;
 
@@ -1099,12 +1109,16 @@ async fn start_game(
 
     match result {
         Ok((final_path, process, temp_dir)) => {
+            let slave_pid = process.id();
             let ipc_shutdown = game_name.as_deref().map(|name| {
                 let (tx, rx) = std::sync::mpsc::channel::<()>();
                 let gid = game_id.clone();
                 let gname = name.to_string();
+                let large_image = icon_hash.as_ref().map(|h|
+                    format!("https://cdn.discordapp.com/app-icons/{}/{}.png", game_id, h)
+                );
                 thread::spawn(move || {
-                    discord_ipc_session(gid, Some(gname), Some("via Disactivity".into()), 0, rx)
+                    discord_ipc_session(gid, Some(gname), Some("via Disactivity".into()), 0, large_image, Some(slave_pid), rx)
                 });
                 tx
             });
@@ -1272,7 +1286,7 @@ fn run_schedule_watcher(app: tauri::AppHandle, rx: std::sync::mpsc::Receiver<()>
                 let cid = profile.client_id.clone();
                 let details = profile.details.clone();
                 let state_text = profile.state_text.clone();
-                thread::spawn(move || discord_ipc_session(cid, details, state_text, 0, session_rx));
+                thread::spawn(move || discord_ipc_session(cid, details, state_text, 0, None, None, session_rx));
                 ipc_shutdown = Some(tx);
             }
             let _ = app.emit("schedule-profile-changed", new_id);
@@ -1516,7 +1530,7 @@ fn run_media_watcher(client_id: String, app: tauri::AppHandle, rx: std::sync::mp
                 let state_text = Some(format!("via {}", np.source));
                 let (tx, session_rx) = std::sync::mpsc::channel::<()>();
                 let cid = client_id.clone();
-                thread::spawn(move || discord_ipc_session(cid, Some(details), state_text, 2, session_rx));
+                thread::spawn(move || discord_ipc_session(cid, Some(details), state_text, 2, None, None, session_rx));
                 ipc_shutdown = Some(tx);
             }
             let _ = app.emit("media-now-playing", last_playing.clone());
@@ -1680,7 +1694,7 @@ fn run_ide_watcher(client_id: String, app: tauri::AppHandle, rx: std::sync::mpsc
                 let state_text = ide.project.clone().map(|p| format!("in {}", p)).or_else(|| Some(ide.editor.clone()));
                 let (tx, session_rx) = std::sync::mpsc::channel::<()>();
                 let cid = client_id.clone();
-                thread::spawn(move || discord_ipc_session(cid, Some(details), state_text, 0, session_rx));
+                thread::spawn(move || discord_ipc_session(cid, Some(details), state_text, 0, None, None, session_rx));
                 ipc_shutdown = Some(tx);
             }
             let _ = app.emit("ide-activity", last_activity.clone());
@@ -1730,7 +1744,7 @@ fn build_remote_status(state: &AppState) -> RemoteStatus {
 }
 
 async fn run_remote_server(
-    port: u16,
+    listener: tokio::net::TcpListener,
     pin: Option<String>,
     app: tauri::AppHandle,
     event_tx: broadcast::Sender<String>,
@@ -1841,10 +1855,14 @@ async fn run_remote_server(
                                         None,
                                         game.icon_hash.as_deref(),
                                     ).await {
+                                        let slave_pid = process.id();
+                                        let large_image = game.icon_hash.as_ref().map(|h|
+                                            format!("https://cdn.discordapp.com/app-icons/{}/{}.png", game.id, h)
+                                        );
                                         let (tx, rx) = std::sync::mpsc::channel::<()>();
                                         let cid = game.id.clone();
                                         let gname = game.name.clone();
-                                        thread::spawn(move || discord_ipc_session(cid, Some(gname), None, 0, rx));
+                                        thread::spawn(move || discord_ipc_session(cid, Some(gname), None, 0, large_image, Some(slave_pid), rx));
                                         let rg = RunningGame { process, temp_dir, ipc_shutdown: Some(tx) };
                                         lock_or_recover(&state.running_games).insert(game.id, rg);
                                     }
@@ -1910,7 +1928,7 @@ async fn run_remote_server(
                             let cid = profile.client_id.clone();
                             let details = profile.details.clone();
                             let state_text = profile.state_text.clone();
-                            thread::spawn(move || discord_ipc_session(cid, details, state_text, 0, rx));
+                            thread::spawn(move || discord_ipc_session(cid, details, state_text, 0, None, None, rx));
                             *lock_or_recover(&s.custom_presence_shutdown) = Some(tx);
                             return (StatusCode::OK, Json(serde_json::json!({"ok": true}))).into_response();
                         }
@@ -1968,16 +1986,8 @@ async fn run_remote_server(
 
     let router = app_routes.layer(cors);
 
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = match tokio::net::TcpListener::bind(addr).await {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("Remote server bind failed on port {}: {}", port, e);
-            return;
-        }
-    };
-
     // mDNS advertisement (best-effort; failures are silently ignored)
+    let port = listener.local_addr().map(|a| a.port()).unwrap_or(REMOTE_DEFAULT_PORT);
     let mdns = mdns_sd::ServiceDaemon::new().ok();
     let mdns_svc_type = "_disactivity._tcp.local.";
     let instance_name = "Disactivity";
@@ -2035,17 +2045,22 @@ async fn set_remote_server(
         });
     }
 
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], actual_port));
+    let listener = tokio::net::TcpListener::bind(addr).await
+        .map_err(|e| format!("Cannot start remote server: port {} is already in use or blocked ({})", actual_port, e))?;
+
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     let (event_tx, _) = broadcast::channel::<String>(64);
 
     *lock_or_recover(&state.remote_server_shutdown) = Some(shutdown_tx);
     *lock_or_recover(&state.remote_event_tx) = Some(event_tx.clone());
+    *lock_or_recover(&state.remote_port) = actual_port;
 
     let app_clone = app.clone();
     let pin_clone = pin.clone();
     let etx = event_tx.clone();
     tokio::spawn(async move {
-        run_remote_server(actual_port, pin_clone, app_clone, etx, shutdown_rx).await;
+        run_remote_server(listener, pin_clone, app_clone, etx, shutdown_rx).await;
     });
 
     Ok(RemoteServerInfo {
@@ -2059,9 +2074,10 @@ async fn set_remote_server(
 #[tauri::command]
 fn get_remote_server_info(state: tauri::State<'_, AppState>) -> RemoteServerInfo {
     let running = lock_or_recover(&state.remote_server_shutdown).is_some();
+    let port = *lock_or_recover(&state.remote_port);
     RemoteServerInfo {
-        port: REMOTE_DEFAULT_PORT,
-        addresses: if running { get_local_ips(REMOTE_DEFAULT_PORT) } else { vec![] },
+        port,
+        addresses: if running { get_local_ips(port) } else { vec![] },
         pin_required: false,
         running,
     }
@@ -2119,6 +2135,7 @@ pub fn run() {
             ide_watcher_shutdown: Mutex::new(None),
             remote_server_shutdown: Mutex::new(None),
             remote_event_tx: Mutex::new(None),
+            remote_port: Mutex::new(REMOTE_DEFAULT_PORT),
         })
         .setup(|app| {
             // Apply Mica backdrop on Windows 11; no-op on other platforms

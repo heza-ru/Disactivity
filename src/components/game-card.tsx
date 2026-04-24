@@ -114,7 +114,7 @@ export function GameCard({
     return (
         <>
             <div
-                className={`flex items-center gap-4 p-3 rounded-lg border transition-colors overflow-hidden animate-in fade-in-0 slide-in-from-bottom-1 duration-150 ${
+                className={`flex items-center gap-4 p-3 rounded-lg border transition-colors overflow-hidden animate-in fade-in-0 slide-in-from-bottom-1 duration-150 max-sm:gap-2 max-sm:p-2 ${
                     isRunning
                         ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/15"
                         : isFavorite
@@ -125,7 +125,7 @@ export function GameCard({
                 {/* Game icon — click opens details */}
                 <button
                     onClick={() => setDetailsOpen(true)}
-                    className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group"
+                    className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group max-sm:h-11 max-sm:w-11"
                     aria-label={t("gameDetails.open", { name: game.name })}
                 >
                     {/* Skeleton shown until image loads */}
@@ -159,7 +159,7 @@ export function GameCard({
                         {/* Game name — click opens details */}
                         <button
                             onClick={() => setDetailsOpen(true)}
-                            className="font-medium text-foreground truncate min-w-0 text-left hover:underline focus:outline-none focus-visible:underline"
+                            className="font-medium text-foreground truncate min-w-0 text-left hover:underline focus:outline-none focus-visible:underline max-sm:text-sm"
                             aria-label={t("gameDetails.open", { name: game.name })}
                         >
                             {game.name}
@@ -170,7 +170,7 @@ export function GameCard({
                             </span>
                         )}
                         {isRunning && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 font-medium whitespace-nowrap shrink-0">
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 font-medium whitespace-nowrap shrink-0 max-sm:text-[10px] max-sm:px-1">
                                 {formatElapsedTime(elapsed)}
                             </span>
                         )}

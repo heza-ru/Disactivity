@@ -34,7 +34,7 @@ chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"
 tempfile = "3"
 keyring = "2"
-tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls"] }
+tauri-plugin-updater = { version = "2" }
 tauri-plugin-process = "2"
 
 [target.'cfg(windows)'.dependencies]
