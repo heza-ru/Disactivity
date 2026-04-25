@@ -140,15 +140,14 @@ button:hover {
         background-color: transparent;
     }
 
-    /* Hide native scrollbar for elements that don't use ScrollArea */
-    html::-webkit-scrollbar,
-    body::-webkit-scrollbar {
+    /* Suppress native scrollbars app-wide — Radix ScrollArea provides themed ones */
+    *::-webkit-scrollbar {
         display: none;
         width: 0;
         height: 0;
     }
 
-    html, body {
+    * {
         scrollbar-width: none;
         -ms-overflow-style: none;
     }

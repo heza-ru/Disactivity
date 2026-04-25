@@ -32,6 +32,10 @@ Disactivity helps you show "Playing" status in social apps by running detectable
   <a href="CHANGELOG.md"><strong>Changelog</strong></a>
 </p>
 
+<p align="center">
+  <img src="public/OpenerShots.png" alt="Disactivity" width="720" />
+</p>
+
 </div>
 
 > **Independent fork**  
@@ -91,6 +95,10 @@ If you need exact parity with the original app, use the [parent repository](http
 ---
 
 ## Features
+
+<p align="center">
+  <img src="public/Banner.jpg" alt="Disactivity" width="720" />
+</p>
 
 **Library & search**
 
@@ -162,13 +170,7 @@ bun install && bun run tauri dev
 
 For production builds and full setup details, see [Developers](#developers).
 
----
 
-## Screenshots
-
-<p align="center">
-  <img src="public/banner.png" alt="Disactivity" width="720" />
-</p>
 
 ---
 
@@ -341,9 +343,9 @@ Original app concept, branding lineage, and prior art belong to the **parent** p
 ---
 
 <p align="center">
-  <a href="https://star-history.com/#holasoyender/disactivity&Date">
-    <img src="https://api.star-history.com/svg?repos=holasoyender/disactivity&type=Date" alt="Star history — original Disactivity repository" width="600" />
+  <a href="https://star-history.com/#heza-ru/disactivity&holasoyender/disactivity&Date">
+    <img src="https://api.star-history.com/svg?repos=heza-ru/disactivity,holasoyender/disactivity&type=Date" alt="Star history — fork and original Disactivity repositories" width="760" />
   </a>
   <br />
-  <sub>Star history: <strong>original</strong> <code>holasoyender/disactivity</code> (reference). Star <a href="https://github.com/heza-ru/disactivity">this fork</a> to support <strong>this</strong> line of development.</sub>
+  <sub>Star history comparison: <strong>this fork</strong> <code>heza-ru/disactivity</code> and <strong>original</strong> <code>holasoyender/disactivity</code>. Star <a href="https://github.com/heza-ru/disactivity">this fork</a> to support this independent line of development.</sub>
 </p>

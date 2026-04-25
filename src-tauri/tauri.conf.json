@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Disactivity",
         "width": 650,
         "height": 800,

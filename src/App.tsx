@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react
 import { useTranslation } from "react-i18next"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
+import { getCurrentWindow, currentMonitor } from "@tauri-apps/api/window"
 import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -18,6 +20,7 @@ const HomePage = lazy(() => import("@/pages/home-page").then((m) => ({ default: 
 const SettingsPage = lazy(() => import("@/pages/settings-page").then((m) => ({ default: m.SettingsPage })))
 const AboutPage = lazy(() => import("@/pages/about-page").then((m) => ({ default: m.AboutPage })))
 const RemotePage = lazy(() => import("@/pages/remote-page").then((m) => ({ default: m.RemotePage })))
+const SlavePopupPage = lazy(() => import("@/pages/slave-popup-page").then((m) => ({ default: m.SlavePopupPage })))
 import type { ApiKeys, DiscoveryData } from "@/types/discovery"
 import { scheduleWhenIdle } from "@/lib/schedule-idle"
 
@@ -47,6 +50,10 @@ function addRecentlyPlayed(gameId: string, current: RecentGame[]): RecentGame[] 
 
 export default function App() {
     const { t } = useTranslation()
+    const windowLabel = useMemo(() => {
+        try { return getCurrentWindow().label } catch { return "main" }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
     const [activePage, setActivePage] = useState<AppPage>("home")
     const [games, setGames] = useState<Game[]>([])
     const [customGames, setCustomGames] = useState<Game[]>([])
@@ -63,6 +70,8 @@ export default function App() {
     const [discoveryData, setDiscoveryData] = useState<DiscoveryData | null>(null)
     const [hasRawgKey, setHasRawgKey] = useState(false)
     const [uiNow, setUiNow] = useState(() => Date.now())
+    const isSlavePopupWindow = windowLabel === "slave-popup"
+
 
     // Merge API games with custom games
     const allGames = useMemo(() => [...customGames, ...games], [customGames, games])
@@ -417,9 +426,77 @@ export default function App() {
             .catch(console.error)
     }, [fetchDiscovery])
 
+    useEffect(() => {
+        if (isSlavePopupWindow) return
+
+        const syncPopup = async () => {
+            const existing = await WebviewWindow.getByLabel("slave-popup")
+
+            if (runningGames.size === 0) {
+                if (existing) await existing.close().catch(() => {})
+                return
+            }
+
+            if (existing) return // already open
+
+            // Calculate bottom-right position using the primary monitor
+            const W = 360
+            const H = 164
+            const MARGIN = 12
+            let x = 0
+            let y = 0
+            try {
+                const mon = await currentMonitor()
+                if (mon) {
+                    const sf = mon.scaleFactor ?? 1
+                    const mw = Math.round(mon.size.width / sf)
+                    const mh = Math.round(mon.size.height / sf)
+                    const ox = Math.round(mon.position.x / sf)
+                    const oy = Math.round(mon.position.y / sf)
+                    // Leave ~48 px for taskbar at bottom
+                    x = ox + mw - W - MARGIN
+                    y = oy + mh - H - 48 - MARGIN
+                }
+            } catch { /* use 0,0 as fallback */ }
+
+            const activeGame = runningGames.size > 0
+                ? gamesById.get([...runningGames][0])
+                : undefined
+
+            const win = new WebviewWindow("slave-popup", {
+                url: "index.html?slavePopup=1",
+                title: activeGame?.name ?? "Activity Session",
+                width: W,
+                height: H,
+                x,
+                y,
+                decorations: false,
+                transparent: true,
+                resizable: false,
+                alwaysOnTop: true,
+                skipTaskbar: false,
+                focus: false,
+            })
+            win.once("tauri://error", (e) => console.error("slave popup error", e))
+        }
+
+        syncPopup().catch(console.error)
+    }, [runningGames.size, isSlavePopupWindow, runningGames, gamesById])
+
     return (
         <ErrorBoundary>
             <TooltipProvider delayDuration={200}>
+            {isSlavePopupWindow ? (
+                <Suspense
+                    fallback={(
+                        <div className="h-screen flex items-center justify-center text-sm text-muted-foreground">
+                            {t("loading.shell")}
+                        </div>
+                    )}
+                >
+                    <SlavePopupPage />
+                </Suspense>
+            ) : (
             <div className="h-screen flex flex-col bg-background/90 dark:bg-background/80 backdrop-blur-xl font-sans antialiased overflow-hidden">
                 <TitleBar
                     runningGames={runningGamesInfo}
@@ -481,6 +558,7 @@ export default function App() {
 
                 <Toaster />
             </div>
+            )}
             </TooltipProvider>
         </ErrorBoundary>
     )
