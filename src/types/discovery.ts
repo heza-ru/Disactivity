@@ -3,6 +3,8 @@ export interface GameMetadata {
     release_date: number | null  // Unix timestamp (seconds)
     genres: string[]
     platforms: string[]
+    publishers: string[]
+    developers: string[]
     rating: number | null        // 0–100
     summary: string | null
     igdb_name: string | null

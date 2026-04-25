@@ -6,6 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export function AboutPage() {
     const { t } = useTranslation()
     const [version, setVersion] = useState<string>("—")
+    const forkRepoUrl = "https://github.com/heza-ru/Disactivity"
+    const upstreamRepoUrl = "https://github.com/holasoyender/disactivity"
 
     useEffect(() => {
         getVersion().then(setVersion).catch(() => {})
@@ -32,6 +34,28 @@ export function AboutPage() {
                 </div>
 
                 <div className="text-center text-xs text-muted-foreground mt-8">
+                    <div className="mb-4 space-y-1">
+                        <p>
+                            <a
+                                href={forkRepoUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary hover:underline"
+                            >
+                                {t("about.forkRepo")}
+                            </a>
+                        </p>
+                        <p>
+                            <a
+                                href={upstreamRepoUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary hover:underline"
+                            >
+                                {t("about.upstreamRepo")}
+                            </a>
+                        </p>
+                    </div>
                     <p>{t("about.mitLicense")}</p>
                 </div>
             </main>

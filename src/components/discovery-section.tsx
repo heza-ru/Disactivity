@@ -12,15 +12,28 @@ interface DiscoveryCardProps {
     discordGame?: Game
     isRunning: boolean
     onPlay: (game: Game) => void
+    onOpenDetails: (game: EnrichedDiscoveryGame, linkedGame?: Game) => void
 }
 
-function DiscoveryCard({ game, discordGame, isRunning, onPlay }: DiscoveryCardProps) {
+function DiscoveryCard({ game, discordGame, isRunning, onPlay, onOpenDetails }: DiscoveryCardProps) {
     const rating = formatRawgRating(game.rating)
     const year = game.released ? game.released.slice(0, 4) : null
     const primaryGenre = game.genres[0] ?? null
 
     return (
-        <div className="relative flex-shrink-0 w-40 rounded-xl overflow-hidden bg-muted group cursor-pointer border border-border/40 hover:border-border/80 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg">
+        <div
+            onClick={() => onOpenDetails(game, discordGame)}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    onOpenDetails(game, discordGame)
+                }
+            }}
+            className="relative flex-shrink-0 w-40 rounded-2xl overflow-hidden bg-muted group border border-border/50 hover:border-border/90 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg text-left"
+            role="button"
+            tabIndex={0}
+            aria-label={`View details for ${game.name}`}
+        >
             {/* Cover image */}
             {game.background_image ? (
                 <img
@@ -70,6 +83,7 @@ function DiscoveryCard({ game, discordGame, isRunning, onPlay }: DiscoveryCardPr
                 {/* Play button — visible when Discord game is matched */}
                 {discordGame && (
                     <button
+                        type="button"
                         onClick={(e) => {
                             e.stopPropagation()
                             onPlay(discordGame)
@@ -106,6 +120,7 @@ interface DiscoverySectionProps {
     gamesById: Map<string, Game>
     runningGames: Set<string>
     onStartGame: (game: Game) => void
+    onOpenDetails: (game: EnrichedDiscoveryGame, linkedGame?: Game) => void
 }
 
 export function DiscoverySection({
@@ -115,6 +130,7 @@ export function DiscoverySection({
     gamesById,
     runningGames,
     onStartGame,
+    onOpenDetails,
 }: DiscoverySectionProps) {
     const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -135,7 +151,7 @@ export function DiscoverySection({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-7 w-7 rounded-4xl"
                         onClick={() => scroll("left")}
                         aria-label="Scroll left"
                     >
@@ -144,7 +160,7 @@ export function DiscoverySection({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-7 w-7 rounded-4xl"
                         onClick={() => scroll("right")}
                         aria-label="Scroll right"
                     >
@@ -165,6 +181,7 @@ export function DiscoverySection({
                         discordGame={dg.discordGameId ? gamesById.get(dg.discordGameId) : undefined}
                         isRunning={!!dg.discordGameId && runningGames.has(dg.discordGameId)}
                         onPlay={onStartGame}
+                        onOpenDetails={onOpenDetails}
                     />
                 ))}
             </div>
@@ -179,14 +196,27 @@ interface HeroBannerProps {
     discordGame?: Game
     isRunning: boolean
     onPlay: (game: Game) => void
+    onOpenDetails: (game: EnrichedDiscoveryGame, linkedGame?: Game) => void
 }
 
-export function HeroBanner({ game, discordGame, isRunning, onPlay }: HeroBannerProps) {
+export function HeroBanner({ game, discordGame, isRunning, onPlay, onOpenDetails }: HeroBannerProps) {
     const rating = formatRawgRating(game.rating)
     const year = game.released ? game.released.slice(0, 4) : null
 
     return (
-        <div className="relative w-full h-44 rounded-xl overflow-hidden mb-6 group">
+        <div
+            onClick={() => onOpenDetails(game, discordGame)}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    onOpenDetails(game, discordGame)
+                }
+            }}
+            className="relative w-full h-44 rounded-2xl overflow-hidden mb-6 group text-left border border-border/50 hover:border-border/90 transition-colors"
+            role="button"
+            tabIndex={0}
+            aria-label={`View details for ${game.name}`}
+        >
             {/* Background */}
             {game.background_image ? (
                 <img
@@ -237,10 +267,14 @@ export function HeroBanner({ game, discordGame, isRunning, onPlay }: HeroBannerP
 
                 {discordGame && (
                     <Button
+                        type="button"
                         size="sm"
                         variant={isRunning ? "destructive" : "default"}
                         className="ml-4 shrink-0 gap-1.5 shadow-lg"
-                        onClick={() => onPlay(discordGame)}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onPlay(discordGame)
+                        }}
                         aria-label={`Play ${game.name}`}
                     >
                         <Play className="h-3.5 w-3.5 fill-current" />

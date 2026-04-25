@@ -288,6 +288,8 @@ pub struct GameMetadata {
     pub release_date: Option<i64>,
     pub genres: Vec<String>,
     pub platforms: Vec<String>,
+    pub publishers: Vec<String>,
+    pub developers: Vec<String>,
     pub rating: Option<f64>,
     pub summary: Option<String>,
     pub igdb_name: Option<String>,
@@ -365,7 +367,7 @@ async fn fetch_igdb_metadata(
     let access_token = get_twitch_token(&client_id, &client_secret, &state.twitch_token).await?;
 
     let body = format!(
-        "fields name,cover.url,first_release_date,genres.name,platforms.abbreviation,rating,summary; search \"{}\"; limit 3; where version_parent = null;",
+        "fields name,cover.url,first_release_date,genres.name,platforms.abbreviation,involved_companies.publisher,involved_companies.developer,involved_companies.company.name,rating,summary; search \"{}\"; limit 3; where version_parent = null;",
         game_name.replace('"', "\\\"")
     );
 
@@ -404,11 +406,31 @@ async fn fetch_igdb_metadata(
         .map(|arr| arr.iter().filter_map(|p| p["abbreviation"].as_str().map(String::from)).collect())
         .unwrap_or_default();
 
+    let mut publishers: Vec<String> = Vec::new();
+    let mut developers: Vec<String> = Vec::new();
+    if let Some(companies) = best["involved_companies"].as_array() {
+        for c in companies {
+            let name = c["company"]["name"].as_str().map(String::from);
+            let is_publisher = c["publisher"].as_bool().unwrap_or(false);
+            let is_developer = c["developer"].as_bool().unwrap_or(false);
+            if let Some(company_name) = name {
+                if is_publisher && !publishers.contains(&company_name) {
+                    publishers.push(company_name.clone());
+                }
+                if is_developer && !developers.contains(&company_name) {
+                    developers.push(company_name);
+                }
+            }
+        }
+    }
+
     let metadata = GameMetadata {
         cover_url,
         release_date: best["first_release_date"].as_i64(),
         genres,
         platforms,
+        publishers,
+        developers,
         rating: best["rating"].as_f64(),
         summary: best["summary"].as_str().map(String::from),
         igdb_name: best["name"].as_str().map(String::from),
@@ -1531,7 +1553,7 @@ fn set_media_watcher_impl(
         let client_id = keys
             .media_client_id
             .filter(|k| !k.trim().is_empty())
-            .ok_or("No media Discord client ID configured")?;
+            .ok_or("No media app client ID configured")?;
         let (tx, rx) = std::sync::mpsc::channel::<()>();
         thread::spawn(move || run_media_watcher(client_id.trim().to_string(), app, rx));
         *lock_or_recover(&state.media_watcher_shutdown) = Some(tx);
@@ -1704,7 +1726,7 @@ fn set_ide_watcher_impl(
         let client_id = keys
             .ide_client_id
             .filter(|k| !k.trim().is_empty())
-            .ok_or("No IDE Discord client ID configured")?;
+            .ok_or("No IDE app client ID configured")?;
         let (tx, rx) = std::sync::mpsc::channel::<()>();
         thread::spawn(move || run_ide_watcher(client_id.trim().to_string(), app, rx));
         *lock_or_recover(&state.ide_watcher_shutdown) = Some(tx);

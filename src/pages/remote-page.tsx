@@ -77,7 +77,7 @@ export function RemotePage() {
 
     return (
         <ScrollArea className="flex-1 mt-20">
-            <main className="mx-auto max-w-xl px-6 py-8 pb-12 space-y-8">
+            <main className="mx-auto max-w-xl px-6 py-8 pb-12 space-y-6">
                 <div>
                     <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
                         <Smartphone className="h-5 w-5" />
@@ -87,7 +87,7 @@ export function RemotePage() {
                 </div>
 
                 {/* Server toggle */}
-                <section className="rounded-lg border border-border bg-card p-4 space-y-4">
+                <section className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm p-4 space-y-4 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             {enabled
@@ -111,7 +111,7 @@ export function RemotePage() {
                                 value={port}
                                 onChange={(e) => setPort(+e.target.value)}
                                 disabled={enabled}
-                                className="h-8 text-xs mt-1"
+                                className="h-9 text-xs mt-1 rounded-2xl"
                                 min={1024}
                                 max={65535}
                             />
@@ -124,7 +124,7 @@ export function RemotePage() {
                                 value={pin}
                                 onChange={(e) => setPin(e.target.value)}
                                 disabled={enabled}
-                                className="h-8 text-xs mt-1"
+                                className="h-9 text-xs mt-1 rounded-2xl"
                                 maxLength={8}
                             />
                         </div>
@@ -133,17 +133,17 @@ export function RemotePage() {
 
                 {/* Connection addresses */}
                 {enabled && serverInfo && serverInfo.addresses.length > 0 && (
-                    <section className="rounded-lg border border-border bg-card p-4 space-y-3">
+                    <section className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm p-4 space-y-3 shadow-sm">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             {t("remote.connectFrom")}
                         </p>
                         {serverInfo.addresses.map((addr) => (
-                            <div key={addr} className="flex items-center gap-2 rounded-md bg-muted/40 border border-border/50 px-3 py-2">
+                            <div key={addr} className="flex items-center gap-2 rounded-2xl bg-muted/40 border border-border/50 px-3 py-2">
                                 <code className="flex-1 text-sm font-mono">http://{addr}</code>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 shrink-0"
+                                    className="h-8 w-8 shrink-0"
                                     onClick={() => copyAddress(addr)}
                                 >
                                     {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -235,7 +235,7 @@ function RemoteControlPanel({ serverInfo, pin }: { serverInfo: RemoteServerInfo 
     }
 
     return (
-        <section className="rounded-lg border border-border bg-card divide-y divide-border/60">
+        <section className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm divide-y divide-border/60 shadow-sm">
             {/* Running games */}
             <div className="px-4 py-3">
                 <div className="flex items-center justify-between mb-2">
@@ -248,7 +248,7 @@ function RemoteControlPanel({ serverInfo, pin }: { serverInfo: RemoteServerInfo 
                     ? <p className="text-xs text-muted-foreground">{t("taskManager.noGames")}</p>
                     : <div className="space-y-1.5">
                         {status.running_game_ids.map((id) => (
-                            <div key={id} className="flex items-center justify-between rounded-md bg-muted/40 border border-border/50 px-3 py-2">
+                            <div key={id} className="flex items-center justify-between rounded-2xl bg-muted/40 border border-border/50 px-3 py-2">
                                 <div className="flex items-center gap-2">
                                     <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
                                     <span className="text-xs font-mono truncate max-w-[180px]">{id}</span>
@@ -276,14 +276,16 @@ function RemoteControlPanel({ serverInfo, pin }: { serverInfo: RemoteServerInfo 
                     ? <p className="text-xs text-muted-foreground">{t("schedules.noProfiles")}</p>
                     : <div className="flex flex-wrap gap-1.5">
                         {profiles.map((p) => (
-                            <button
+                            <Button
                                 key={p.id}
+                                variant="outline"
+                                size="xs"
                                 onClick={() => activateProfile(p.id)}
-                                className="text-xs px-2.5 py-1 rounded-full border border-border hover:border-primary hover:bg-primary/10 transition-colors"
+                                className="rounded-4xl bg-input/20 border-border/70 hover:bg-primary/10"
                             >
-                                <User className="h-3 w-3 inline mr-1 opacity-60" />
+                                <User className="h-3 w-3 mr-1 opacity-60" />
                                 {p.name}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 }
@@ -299,7 +301,7 @@ function RemoteControlPanel({ serverInfo, pin }: { serverInfo: RemoteServerInfo 
                                 {status.now_playing.artist ? `${status.now_playing.artist} — ` : ""}
                                 {status.now_playing.title}
                             </span>
-                            <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted">{status.now_playing.source}</span>
+                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-4xl bg-muted/70 border border-border/50">{status.now_playing.source}</span>
                         </div>
                     )}
                     {status.ide_activity && (

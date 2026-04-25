@@ -26,6 +26,7 @@ import {
 import { GameCard, type Game } from "@/components/game-card"
 import { VirtualGameList } from "@/components/virtual-game-list"
 import { DiscoverySection, HeroBanner } from "@/components/discovery-section"
+import { GameDetailsDialog } from "@/components/game-details-dialog"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -39,7 +40,7 @@ import {
 } from "@/components/ui/pagination"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { AppSettings } from "@/lib/settings"
-import type { DiscoveryData } from "@/types/discovery"
+import type { DiscoveryData, EnrichedDiscoveryGame } from "@/types/discovery"
 import { enrichDiscoveryGames } from "@/lib/game-metadata"
 import { getGameIconUrl, DEFAULT_GAME_ICON } from "@/lib/game-assets"
 import { useDebouncedValueWithFlush } from "@/lib/use-debounced-value"
@@ -111,6 +112,9 @@ export function HomePage({
     const [newGameName, setNewGameName] = useState("")
     const [newGameExe, setNewGameExe] = useState("")
     const [isAdding, setIsAdding] = useState(false)
+    const [discoveryDetailsOpen, setDiscoveryDetailsOpen] = useState(false)
+    const [selectedDiscoveryGame, setSelectedDiscoveryGame] = useState<EnrichedDiscoveryGame | null>(null)
+    const [selectedDiscoveryLinkedGame, setSelectedDiscoveryLinkedGame] = useState<Game | null>(null)
     const searchRef = useRef<HTMLInputElement>(null)
     const importFileRef = useRef<HTMLInputElement>(null)
     const scrollViewportRef = useRef<HTMLDivElement | null>(null)
@@ -189,6 +193,12 @@ export function HomePage({
         }
     }
 
+    const handleOpenDiscoveryDetails = useCallback((game: EnrichedDiscoveryGame, linkedGame?: Game) => {
+        setSelectedDiscoveryGame(game)
+        setSelectedDiscoveryLinkedGame(linkedGame ?? null)
+        setDiscoveryDetailsOpen(true)
+    }, [])
+
     const { favoriteGames, nonFavoriteGames } = useMemo(() => {
         const favs = filteredGames.filter((game) => favorites.has(game.id))
         const nonFavs = filteredGames.filter((game) => !favorites.has(game.id))
@@ -250,10 +260,26 @@ export function HomePage({
         return enrichDiscoveryGames(discoveryData.new_releases, gamesById)
     }, [discoveryData?.new_releases, gamesById])
 
-    // Hero = first trending game that has a background image
+    // Hero = newest released discovery game with a background image
     const heroGame = useMemo(() => {
-        return enrichedTrending.find((g) => g.background_image) ?? null
-    }, [enrichedTrending])
+        const byNewestRelease = (a: { released: string | null }, b: { released: string | null }) => {
+            const aTs = a.released ? Date.parse(a.released) : Number.NaN
+            const bTs = b.released ? Date.parse(b.released) : Number.NaN
+            const safeA = Number.isNaN(aTs) ? -Infinity : aTs
+            const safeB = Number.isNaN(bTs) ? -Infinity : bTs
+            return safeB - safeA
+        }
+
+        const releaseCandidates = [...enrichedNewReleases]
+            .filter((g) => g.background_image)
+            .sort(byNewestRelease)
+        if (releaseCandidates.length > 0) return releaseCandidates[0]
+
+        const trendingCandidates = [...enrichedTrending]
+            .filter((g) => g.background_image)
+            .sort(byNewestRelease)
+        return trendingCandidates[0] ?? null
+    }, [enrichedNewReleases, enrichedTrending])
 
     // Trending strip = rest of trending (after hero)
     const trendingStrip = useMemo(() => {
@@ -280,6 +306,7 @@ export function HomePage({
                                             discordGame={heroGame.discordGameId ? gamesById.get(heroGame.discordGameId) : undefined}
                                             isRunning={!!heroGame.discordGameId && runningGames.has(heroGame.discordGameId)}
                                             onPlay={onStartGame}
+                                            onOpenDetails={handleOpenDiscoveryDetails}
                                         />
                                     )}
 
@@ -292,6 +319,7 @@ export function HomePage({
                                             gamesById={gamesById}
                                             runningGames={runningGames}
                                             onStartGame={onStartGame}
+                                            onOpenDetails={handleOpenDiscoveryDetails}
                                         />
                                     )}
 
@@ -304,6 +332,7 @@ export function HomePage({
                                             gamesById={gamesById}
                                             runningGames={runningGames}
                                             onStartGame={onStartGame}
+                                            onOpenDetails={handleOpenDiscoveryDetails}
                                         />
                                     )}
 
@@ -754,6 +783,12 @@ export function HomePage({
                         </>
                     )}
                 </div>
+                <GameDetailsDialog
+                    game={selectedDiscoveryLinkedGame}
+                    discoveryGame={selectedDiscoveryGame}
+                    open={discoveryDetailsOpen}
+                    onOpenChange={setDiscoveryDetailsOpen}
+                />
             </main>
         </ScrollArea>
     )

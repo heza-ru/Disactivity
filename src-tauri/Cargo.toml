@@ -1,7 +1,7 @@
 [package]
 name = "disactivity"
-version = "0.1.0-1"
-description = "Discord Activity Simulator - Simulate game activity on Discord"
+version = "0.0.2-1"
+description = "Activity Presence Simulator - Simulate game activity through detectable placeholder processes"
 authors = ["holasoyender"]
 edition = "2021"
 license = "MIT"

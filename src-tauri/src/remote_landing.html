@@ -9,6 +9,7 @@
       /* Matches App.css .dark */
       --bg: #25252a;
       --card: #303036;
+      --card-soft: rgba(48, 48, 54, 0.72);
       --text: #fafafa;
       --muted: #a1a1a8;
       --primary: #5865f2;
@@ -37,21 +38,26 @@
       color: var(--muted);
     }
     .dot { width: 0.4rem; height: 0.4rem; border-radius: 9999px; background: #22c55e; }
-    .list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
+    .list { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.75rem; }
     .game {
       display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 0.65rem 0.9rem; font-size: 0.9rem;
+      background: var(--card-soft); border: 1px solid var(--border); border-radius: 1rem;
+      backdrop-filter: blur(8px);
+      padding: 0.7rem 0.9rem; font-size: 0.9rem;
     }
     .name { font-weight: 500; word-break: break-word; }
     .btn {
-      font: inherit; cursor: pointer; border: 0; border-radius: 0.5rem;
-      padding: 0.4rem 0.75rem; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+      font: inherit; cursor: pointer; border: 1px solid transparent; border-radius: 999px;
+      padding: 0.45rem 0.9rem; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+      transition: background-color .15s ease, border-color .15s ease, color .15s ease;
     }
     .btn-primary { background: var(--primary); color: #f6f6ff; }
+    .btn-primary:hover { background: var(--primary-hover); }
     .btn-primary:disabled { opacity: 0.4; }
-    .btn-ghost { background: transparent; color: var(--muted); }
+    .btn-ghost { background: transparent; color: var(--muted); border-color: var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.08); color: var(--text); }
     .btn-danger { background: var(--destructive); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
     .err {
       color: #fca5a5; font-size: 0.85rem; background: rgba(127, 29, 29, 0.35);
       border: 1px solid rgba(255, 99, 99, 0.3); border-radius: var(--radius);
@@ -60,8 +66,30 @@
     .foot { font-size: 0.7rem; color: var(--muted); margin-top: 1.5rem; }
     #pin-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
     #pin-form input {
-      flex: 1; padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--border);
+      flex: 1; padding: 0.55rem 0.7rem; border-radius: 999px; border: 1px solid var(--border);
       background: var(--card); color: var(--text); font: inherit;
+    }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      background: var(--card-soft);
+      backdrop-filter: blur(10px);
+      padding: 0.85rem;
+      margin-top: 0.9rem;
+    }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #86efac;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      border-radius: 999px;
+      padding: 0.18rem 0.5rem;
     }
   </style>
 </head>
@@ -82,15 +110,20 @@
         <button class="btn btn-primary" type="button" id="pin-save">Save</button>
       </form>
     </div>
-    <div class="row" style="margin: 0.5rem 0 0.25rem">
-      <span class="badge" style="font-size:0.65rem">Running</span>
-    </div>
-    <div id="running" class="list"></div>
-    <div class="row" style="margin:1rem 0 0.25rem">
-      <span class="badge" style="font-size:0.65rem">Games</span>
-      <button class="btn btn-ghost" type="button" id="refresh">Refresh</button>
-    </div>
-    <div id="games" class="list"></div>
+    <section class="panel">
+      <div class="row" style="margin: 0 0 0.25rem">
+        <span class="badge" style="font-size:0.65rem">Running</span>
+        <span class="status-chip"><span class="dot"></span> Active</span>
+      </div>
+      <div id="running" class="list"></div>
+    </section>
+    <section class="panel">
+      <div class="row" style="margin: 0 0 0.25rem">
+        <span class="badge" style="font-size:0.65rem">Games</span>
+        <button class="btn btn-ghost" type="button" id="refresh">Refresh</button>
+      </div>
+      <div id="games" class="list"></div>
+    </section>
     <p class="foot">LAN only. Same Wi‑Fi as the PC. If this page is blank, open the full URL (including ?pin) from the PC app’s Remote page.</p>
   </main>
   <script>

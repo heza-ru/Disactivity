@@ -23,6 +23,14 @@ export function releaseYear(timestamp: number | null): string | null {
 }
 
 /**
+ * Format a Unix timestamp (seconds) to localized full date.
+ */
+export function formatReleaseDate(timestamp: number | null): string | null {
+    if (timestamp == null) return null
+    return new Date(timestamp * 1000).toLocaleDateString()
+}
+
+/**
  * Format an IGDB 0–100 rating to a display string (e.g. "87").
  */
 export function formatIgdbRating(rating: number | null): string | null {

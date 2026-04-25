@@ -9,42 +9,48 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Loader2, Star, Calendar, Monitor, Tag } from "lucide-react"
+import { Loader2, Star, Calendar, Monitor, Tag, Building2, Wrench } from "lucide-react"
 import type { Game } from "@/components/game-card"
-import type { GameMetadata } from "@/types/discovery"
-import { releaseYear, formatIgdbRating } from "@/lib/game-metadata"
+import type { EnrichedDiscoveryGame, GameMetadata } from "@/types/discovery"
+import { releaseYear, formatIgdbRating, formatReleaseDate } from "@/lib/game-metadata"
 import { getGameIconUrl, DEFAULT_GAME_ICON } from "@/lib/game-assets"
 
 interface GameDetailsDialogProps {
     game: Game | null
+    discoveryGame?: EnrichedDiscoveryGame | null
     open: boolean
     onOpenChange: (open: boolean) => void
 }
 
-export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialogProps) {
+export function GameDetailsDialog({ game, discoveryGame = null, open, onOpenChange }: GameDetailsDialogProps) {
     const { t } = useTranslation()
     const [metadata, setMetadata] = useState<GameMetadata | null>(null)
     const [loadingMeta, setLoadingMeta] = useState(false)
+    const displayName = game?.name ?? discoveryGame?.name ?? ""
 
     useEffect(() => {
-        if (!open || !game) {
+        if (!open || !displayName) {
             setMetadata(null)
             return
         }
         setLoadingMeta(true)
-        invoke<GameMetadata | null>("fetch_igdb_metadata", { gameName: game.name })
+        invoke<GameMetadata | null>("fetch_igdb_metadata", { gameName: displayName })
             .then((m) => setMetadata(m))
             .catch(() => setMetadata(null))
             .finally(() => setLoadingMeta(false))
-    }, [open, game?.id])
+    }, [open, displayName])
 
-    if (!game) return null
+    if (!game && !discoveryGame) return null
 
-    const win32Exes = (game.executables ?? []).filter((e) => e.os === "win32" && !e.name.startsWith(">"))
-    const otherExes = (game.executables ?? []).filter((e) => e.os !== "win32" || e.name.startsWith(">"))
+    const win32Exes = (game?.executables ?? []).filter((e) => e.os === "win32" && !e.name.startsWith(">"))
+    const otherExes = (game?.executables ?? []).filter((e) => e.os !== "win32" || e.name.startsWith(">"))
 
     const year = releaseYear(metadata?.release_date ?? null)
+    const releaseDate = formatReleaseDate(metadata?.release_date ?? null)
     const ratingStr = formatIgdbRating(metadata?.rating ?? null)
+    const imageSrc = game
+        ? getGameIconUrl(game, 256)
+        : discoveryGame?.background_image ?? DEFAULT_GAME_ICON
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,8 +59,8 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                     <div className="flex items-center gap-4">
                         <div className="relative h-16 w-16 shrink-0">
                             <img
-                                src={getGameIconUrl(game, 256)}
-                                alt={game.name}
+                                src={imageSrc}
+                                alt={displayName}
                                 loading="lazy"
                                 decoding="async"
                                 className="h-16 w-16 rounded-xl object-cover bg-muted"
@@ -66,7 +72,7 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                             {metadata?.cover_url && (
                                 <img
                                     src={metadata.cover_url}
-                                    alt={`${game.name} cover`}
+                                    alt={`${displayName} cover`}
                                     loading="lazy"
                                     decoding="async"
                                     className="absolute inset-0 h-16 w-16 rounded-xl object-cover"
@@ -77,10 +83,12 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                             )}
                         </div>
                         <div className="min-w-0 flex-1">
-                            <DialogTitle className="text-left leading-tight">{game.name}</DialogTitle>
-                            <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                                {t("gameCard.id")}: {game.id}
-                            </p>
+                            <DialogTitle className="text-left leading-tight">{displayName}</DialogTitle>
+                            {game && (
+                                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                                    {t("gameCard.id")}: {game.id}
+                                </p>
+                            )}
                             {/* Quick metadata strip */}
                             {metadata && (
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -94,6 +102,11 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                                         <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
                                             <Calendar className="h-3 w-3" />
                                             {year}
+                                        </span>
+                                    )}
+                                    {discoveryGame?.metacritic != null && (
+                                        <span className="text-xs text-green-500">
+                                            MC {discoveryGame.metacritic}
                                         </span>
                                     )}
                                 </div>
@@ -139,6 +152,44 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                         </div>
                     )}
 
+                    {/* Additional metadata */}
+                    {(releaseDate || metadata?.publishers.length || metadata?.developers.length) && (
+                        <div className="space-y-2">
+                            {releaseDate && (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    <span>{t("gameDetails.releaseDate")}: {releaseDate}</span>
+                                </div>
+                            )}
+                            {metadata?.publishers && metadata.publishers.length > 0 && (
+                                <div>
+                                    <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                                        <Building2 className="h-3 w-3" />
+                                        {t("gameDetails.publishers")}
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {metadata.publishers.map((publisher) => (
+                                            <Badge key={publisher} variant="outline">{publisher}</Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {metadata?.developers && metadata.developers.length > 0 && (
+                                <div>
+                                    <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                                        <Wrench className="h-3 w-3" />
+                                        {t("gameDetails.developers")}
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {metadata.developers.map((developer) => (
+                                            <Badge key={developer} variant="secondary">{developer}</Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* IGDB Summary */}
                     {metadata?.summary && (
                         <div>
@@ -152,12 +203,12 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                     )}
 
                     {/* Separator before Discord info if IGDB data shown */}
-                    {metadata && (game.aliases?.length || win32Exes.length || otherExes.length) ? (
+                    {metadata && game && (game.aliases?.length || win32Exes.length || otherExes.length) ? (
                         <Separator />
                     ) : null}
 
                     {/* Aliases */}
-                    {game.aliases && game.aliases.length > 0 && (
+                    {game?.aliases && game.aliases.length > 0 && (
                         <div>
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                                 {t("gameDetails.aliases")}
@@ -171,7 +222,7 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                     )}
 
                     {/* Win32 Executables */}
-                    {win32Exes.length > 0 && (
+                    {game && win32Exes.length > 0 && (
                         <div>
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                                 {t("gameDetails.win32Executables")}
@@ -187,7 +238,7 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                     )}
 
                     {/* Other executables */}
-                    {otherExes.length > 0 && (
+                    {game && otherExes.length > 0 && (
                         <>
                             <Separator />
                             <div>
@@ -209,7 +260,7 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                     )}
 
                     {/* No executables fallback */}
-                    {!game.executables?.length && (
+                    {game && !game.executables?.length && (
                         <p className="text-sm text-muted-foreground">{t("gameDetails.noExecutables")}</p>
                     )}
                 </div>

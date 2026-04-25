@@ -4,14 +4,33 @@
 
 # Disactivity
 
-**Simulate game activity** from the desktop — lightweight, open source, built with **Tauri 2** and **React**.
+**Game activity simulator for desktop** — simulate play status and rich presence with a lightweight, open-source app built on **Tauri 2** and **React**.
 
-[![Release (this fork)](https://img.shields.io/github/v/release/heza-ru/disactivity?style=flat-square&logo=github&label=release)](https://github.com/heza-ru/disactivity/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&style=flat-square)](https://tauri.app/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black&style=flat-square)](https://react.dev/)
+Disactivity helps you show "Playing" status in social apps by running detectable placeholder game processes (no full game install required).
+
+[![Release (this fork)](https://img.shields.io/github/v/release/heza-ru/disactivity?style=for-the-badge&logo=github&label=release)](https://github.com/heza-ru/disactivity/releases)
+[![Build & Release](https://img.shields.io/github/actions/workflow/status/heza-ru/disactivity/build.yml?style=for-the-badge&label=build%20%26%20release)](https://github.com/heza-ru/disactivity/actions/workflows/build.yml)
+[![Downloads](https://img.shields.io/github/downloads/heza-ru/disactivity/total?style=for-the-badge&logo=github&label=downloads)](https://github.com/heza-ru/disactivity/releases)
+[![Last Commit](https://img.shields.io/github/last-commit/heza-ru/disactivity?style=for-the-badge&logo=git)](https://github.com/heza-ru/disactivity/commits)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&style=for-the-badge)](https://tauri.app/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black&style=for-the-badge)](https://react.dev/)
+[![Bun](https://img.shields.io/badge/Bun-1.x-000000?logo=bun&logoColor=white&style=for-the-badge)](https://bun.sh/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-7c3aed?style=for-the-badge)](https://github.com/heza-ru/disactivity/releases)
 
 `v0.1.0-1` · *Version in this repository ([`package.json`](package.json) / [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json)). **MSI/NSIS** bundles require a **numeric-only** prerelease (e.g. `0.1.0-1`, not `0.1.0-alpha`). **GitHub Releases** for this fork are the source of truth for installable builds here.*
+
+<img src="https://readme-typing-svg.demolab.com?font=Inter&size=20&duration=2500&pause=900&center=true&vCenter=true&width=820&lines=Lightweight+desktop+activity+simulator;Fast+startup+and+large-library+friendly;Independent+fork+with+its+own+release+channel" alt="Typing intro animation" />
+
+<p>
+  <a href="https://github.com/heza-ru/disactivity/releases/latest"><strong>Download Latest</strong></a>
+  ·
+  <a href="#features"><strong>View Features</strong></a>
+  ·
+  <a href="#developers"><strong>Build from Source</strong></a>
+  ·
+  <a href="CHANGELOG.md"><strong>Changelog</strong></a>
+</p>
 
 </div>
 
@@ -23,11 +42,17 @@
 ## Table of contents
 
 - [Why this fork](#why-this-fork)
-- [How it differs from the parent repo](#how-it-differs-from-the-parent-repo)
+- [Feature comparison with the parent repo](#feature-comparison-with-the-parent-repo)
 - [Features](#features)
+- [Use cases](#use-cases)
+- [Search terms](#search-terms)
+- [Demo](#demo)
+- [Quick start (30 seconds)](#quick-start-30-seconds)
 - [Screenshots](#screenshots)
 - [Download](#download)
 - [How it works](#how-it-works)
+- [Architecture at a glance](#architecture-at-a-glance)
+- [FAQ / Troubleshooting](#faq--troubleshooting)
 - [Developers](#developers)
 - [Project structure](#project-structure)
 - [Privacy & safety](#privacy--safety)
@@ -43,17 +68,25 @@
 
 ---
 
-## How it differs from the parent repo
+## Feature comparison with the parent repo
 
-| Area | This fork (high level) |
-|------|------------------------|
-| **Releases** | Versioned and published from **[heza-ru/disactivity](https://github.com/heza-ru/disactivity/releases)**; not aligned 1:1 with parent tags. |
-| **Frontend** | [React Compiler](https://react.dev/learn/react-compiler) enabled in Vite for typical builds; virtualized long lists ([TanStack Virtual](https://tanstack.com/virtual)), split i18n loading, idle-deferred work for snappier startup. |
-| **Desktop integration** | Batched Tauri `apply_startup_ui_settings` (tray, idle, schedule, media, IDE) to reduce startup IPC. |
-| **Settings & product** | Extended options (e.g. API keys, discovery, remote, presence/scheduling) — *exact surface may change; treat this README and in-app copy as the source of truth for **this** build.* |
-| **Build tooling** | `bun run build:analyze` (Rollup treemap to `dist/stats.html`), optional one-off build without the compiler, Vitest for tests. |
+Scope: comparison is based on this fork's current code and the parent repo README on `master` at the time of writing.
 
-*If you need parity with the original app, compare against the [parent repository](https://github.com/holasoyender/disactivity) directly.*
+| Feature area | This fork (`heza-ru/disactivity`) | Parent (`holasoyender/disactivity`) |
+|------|------------------------|-------------------------------|
+| **Release channel** | Independent [Releases](https://github.com/heza-ru/disactivity/releases), fork-specific versioning and updater channel. | Upstream [Releases](https://github.com/holasoyender/disactivity/releases) and tags. |
+| **Core simulation** | Simulate game activity by spawning placeholder executable processes. | Simulate game activity by spawning placeholder executable processes. |
+| **Game catalog + search** | Detectable-games catalog with caching/refresh, debounced search, favorites, recent strip, large-list pagination + jump. | Detectable-games catalog, search, and favorites. |
+| **Large library performance** | Virtualized long lists via [TanStack Virtual](https://tanstack.com/virtual), split i18n loading, and idle-deferred startup work. | Not documented upstream. |
+| **Multiple concurrent games** | Supported (run/stop multiple games with shared controls). | Not documented upstream. |
+| **Auto-stop + idle stop** | Configurable timed auto-stop and optional idle-based stop logic. | Not documented upstream. |
+| **Remote/mobile page** | Included in this fork's product surface. | Not documented upstream. |
+| **In-app updater status** | Wired to this fork's signed `latest.json` release artifacts. | Updater listed as WIP in upstream README. |
+| **Languages** | English + Spanish (with async locale loading strategy). | English + Spanish. |
+| **Startup settings IPC** | Batched Tauri `apply_startup_ui_settings` command for startup UI/settings sync. | Not documented upstream. |
+| **Build tooling extras** | `bun run build:analyze`, `bun run build:no-compiler`, Vitest test setup in this tree. | Standard build flow documented in upstream README. |
+
+If you need exact parity with the original app, use the [parent repository](https://github.com/holasoyender/disactivity) and its releases.
 
 ---
 
@@ -81,6 +114,53 @@
 **Developer experience (this tree)**
 
 - TypeScript, Vite, Tauri 2, Rust, Bun; tests via Vitest
+
+---
+
+## Use cases
+
+- Show "Playing" status for demos, streams, screenshots, or profile customization
+- Test rich-presence detection behavior without installing every game locally
+- Quickly switch simulated games for QA, UI captures, or community/testing workflows
+
+---
+
+## Search terms
+
+People often look for this app using terms like:
+
+- game activity simulator
+- game presence simulator
+- rich presence simulator
+- fake game process helper
+- show playing status
+- Disactivity fork (`heza-ru/disactivity`)
+
+If you searched for any of the phrases above, this fork is the independently maintained desktop app version.
+
+---
+
+## Demo
+
+> Add a short product demo for better conversion and shareability.
+>
+> Suggested file: `docs/demo.gif` (10-20 seconds, under ~8 MB).
+
+<p align="center">
+  <img src="public/banner.png" alt="Disactivity demo preview" width="820" />
+</p>
+
+---
+
+## Quick start (30 seconds)
+
+```bash
+git clone https://github.com/heza-ru/disactivity.git
+cd disactivity
+bun install && bun run tauri dev
+```
+
+For production builds and full setup details, see [Developers](#developers).
 
 ---
 
@@ -114,6 +194,52 @@
 4. Optional: **tray** minimize, **updater** checks, **remote** and **metadata** when you configure API keys (see in-app **Settings**).
 
 *Technical details (cache TTL, process lifecycle, etc.) are implementation details — read the code and in-app help for the exact build you run.*
+
+---
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    A[React UI] --> B[Tauri commands]
+    B --> C[Core app process]
+    C --> D[Placeholder process runner]
+    D --> E[OS process list / activity detection]
+    C --> F[Local cache + settings]
+    C --> G[Updater + optional network services]
+```
+
+---
+
+## FAQ / Troubleshooting
+
+### "Playing" status does not appear
+
+- Verify the desktop client is running and account visibility/privacy settings allow activity display.
+- Start one title first, wait a few seconds, then test with another.
+- Restart the desktop client after changing activity-related settings.
+
+### Game list is missing or outdated
+
+- Refresh the catalogue from the app and check your network connection.
+- If cache looks stale, restart the app and retry refresh.
+
+### In-app updater is not finding updates
+
+- This fork uses its own release channel and signed `latest.json` artifacts.
+- Confirm you installed a build from this fork's Releases page, not the parent repo.
+
+### Build or installer gets blocked on Windows
+
+- Smart App Control / reputation filters can flag unsigned or freshly built binaries.
+- Use trusted local build paths, and sign release artifacts for distribution builds.
+
+### `slave.exe` behavior looks wrong
+
+- Rebuild the helper binary before full builds:
+  - `cd src-tauri/slave`
+  - `cargo build --release`
+  - `cd ../..`
 
 ---
 

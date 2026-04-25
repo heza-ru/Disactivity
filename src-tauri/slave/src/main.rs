@@ -24,10 +24,10 @@ use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORN
 #[cfg(windows)]
 use windows_sys::Win32::Graphics::Gdi::{
     BeginPaint, BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, CreateFontW, CreateSolidBrush,
-    DeleteDC, DeleteObject, DrawTextW, EndPaint, FillRect, HGDIOBJ, InvalidateRect, SelectObject,
-    SetBkMode, SetTextColor, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_CHARSET, DEFAULT_PITCH,
-    DT_CENTER, DT_END_ELLIPSIS, DT_LEFT, DT_SINGLELINE, DT_VCENTER, OUT_DEFAULT_PRECIS, PAINTSTRUCT,
-    SRCCOPY,
+    DeleteDC, DeleteObject, DrawTextW, EndPaint, FillRect, HGDIOBJ, InvalidateRect, RoundRect,
+    SelectObject, SetBkMode, SetTextColor, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, CreatePen,
+    DEFAULT_CHARSET, DEFAULT_PITCH, DT_CENTER, DT_END_ELLIPSIS, DT_LEFT, DT_SINGLELINE, DT_VCENTER,
+    OUT_DEFAULT_PRECIS, PAINTSTRUCT, PS_SOLID, SRCCOPY,
 };
 #[cfg(windows)]
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -55,21 +55,21 @@ const WM_MOUSELEAVE: u32 = 0x02a3;
 #[cfg(windows)]
 const W: i32 = 320;
 #[cfg(windows)]
-const H: i32 = 100;
+const H: i32 = 116;
 #[cfg(windows)]
-const TITLE_H: i32 = 28;
+const TITLE_H: i32 = 30;
 
 // Button row
 #[cfg(windows)]
-const BTN_Y: i32 = 70;
+const BTN_Y: i32 = 82;
 #[cfg(windows)]
-const BTN_H: i32 = 24;
+const BTN_H: i32 = 28;
 #[cfg(windows)]
 const BTN_MIN_X1: i32 = 10;
 #[cfg(windows)]
-const BTN_MIN_X2: i32 = 150;
+const BTN_MIN_X2: i32 = 154;
 #[cfg(windows)]
-const BTN_STP_X1: i32 = 162;
+const BTN_STP_X1: i32 = 166;
 #[cfg(windows)]
 const BTN_STP_X2: i32 = 308;
 
@@ -132,6 +132,10 @@ const C_DEST_H: u32 = rgb(220, 38, 38);
 const C_STATUS: u32 = rgb(34, 197, 94);
 #[cfg(windows)]
 const C_TIME: u32 = rgb(88, 101, 242);
+#[cfg(windows)]
+const C_STATUS_BG: u32 = rgb(24, 74, 46);
+#[cfg(windows)]
+const C_STATUS_TEXT: u32 = rgb(134, 239, 172);
 
 #[cfg(windows)]
 fn elapsed_secs() -> u64 {
@@ -207,10 +211,56 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             DeleteObject(hbr_br as HGDIOBJ);
 
             // Status dot (running — same idea as in-app “live” indicators)
-            let dot = RECT { left: W - 20, top: 8, right: W - 8, bottom: 20 };
+            let status_chip = RECT { left: W - 84, top: 7, right: W - 10, bottom: 24 };
+            let hbr_chip = CreateSolidBrush(C_STATUS_BG);
+            let hpen_chip = CreatePen(PS_SOLID, 1, C_STATUS_BG);
+            let prev_pen = SelectObject(hdc, hpen_chip as HGDIOBJ);
+            let prev_brush = SelectObject(hdc, hbr_chip as HGDIOBJ);
+            RoundRect(
+                hdc,
+                status_chip.left,
+                status_chip.top,
+                status_chip.right,
+                status_chip.bottom,
+                14,
+                14,
+            );
+            SelectObject(hdc, prev_brush);
+            SelectObject(hdc, prev_pen);
+            DeleteObject(hpen_chip as HGDIOBJ);
+            DeleteObject(hbr_chip as HGDIOBJ);
+
+            // Live status dot + label for explicit meaning
+            let dot = RECT {
+                left: status_chip.left + 7,
+                top: status_chip.top + 6,
+                right: status_chip.left + 13,
+                bottom: status_chip.top + 12,
+            };
             let hbr_dot = CreateSolidBrush(C_STATUS);
             FillRect(hdc, &dot, hbr_dot);
             DeleteObject(hbr_dot as HGDIOBJ);
+
+            let hfont_status = CreateFontW(
+                11, 0, 0, 0, 700, 0, 0, 0,
+                DEFAULT_CHARSET as u32,
+                OUT_DEFAULT_PRECIS as u32,
+                CLIP_DEFAULT_PRECIS as u32,
+                CLEARTYPE_QUALITY as u32,
+                DEFAULT_PITCH as u32,
+                to_wide("Segoe UI").as_ptr(),
+            );
+            let prev = SelectObject(hdc, hfont_status as HGDIOBJ);
+            SetTextColor(hdc, C_STATUS_TEXT);
+            let mut sr = RECT {
+                left: status_chip.left + 18,
+                top: status_chip.top,
+                right: status_chip.right - 4,
+                bottom: status_chip.bottom,
+            };
+            DrawTextW(hdc, to_wide("ACTIVE").as_ptr(), -1, &mut sr, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+            SelectObject(hdc, prev);
+            DeleteObject(hfont_status as HGDIOBJ);
 
             // ── Shared font setup ──
             SetBkMode(hdc, 1 /* TRANSPARENT */);
@@ -254,9 +304,9 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
                 );
             }
 
-            // Elapsed (discord blurple, matches --primary)
+            // Elapsed timer matches app primary token
             let hfont_time = CreateFontW(
-                23, 0, 0, 0, 600, 0, 0, 0,
+                20, 0, 0, 0, 600, 0, 0, 0,
                 DEFAULT_CHARSET as u32,
                 OUT_DEFAULT_PRECIS as u32,
                 CLIP_DEFAULT_PRECIS as u32,
@@ -269,12 +319,29 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
 
             let time_str = format_time(elapsed_secs());
             let time_wide = to_wide(&time_str);
-            let mut tr = RECT { left: 50, top: TITLE_H, right: W - 8, bottom: BTN_Y - 2 };
+            let mut tr = RECT { left: 50, top: TITLE_H + 2, right: W - 8, bottom: BTN_Y - 18 };
             DrawTextW(hdc, time_wide.as_ptr(), -1, &mut tr,
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
             SelectObject(hdc, prev);
             DeleteObject(hfont_time as HGDIOBJ);
+
+            // Helper text to match parent hierarchy
+            let hfont_meta = CreateFontW(
+                11, 0, 0, 0, 400, 0, 0, 0,
+                DEFAULT_CHARSET as u32,
+                OUT_DEFAULT_PRECIS as u32,
+                CLIP_DEFAULT_PRECIS as u32,
+                CLEARTYPE_QUALITY as u32,
+                DEFAULT_PITCH as u32,
+                to_wide("Segoe UI").as_ptr(),
+            );
+            let prev = SelectObject(hdc, hfont_meta as HGDIOBJ);
+            SetTextColor(hdc, C_MUTED);
+            let mut mr = RECT { left: 50, top: TITLE_H + 23, right: W - 8, bottom: BTN_Y - 2 };
+            DrawTextW(hdc, to_wide("Session elapsed").as_ptr(), -1, &mut mr, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+            SelectObject(hdc, prev);
+            DeleteObject(hfont_meta as HGDIOBJ);
 
             // ── Buttons ──
             let hfont_btn = CreateFontW(
@@ -293,28 +360,58 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             let hov_min = HOVER_MIN.load(Ordering::Relaxed);
             let hov_stp = HOVER_STP.load(Ordering::Relaxed);
 
-            // Minimize — primary (same as app Button default)
+            // Minimize — primary pill button (parent parity)
             let col_min = if hov_min { C_PRIMARY_H } else { C_PRIMARY };
-            let mut btn_min = RECT {
+            let btn_min = RECT {
                 left: BTN_MIN_X1, top: BTN_Y,
                 right: BTN_MIN_X2, bottom: BTN_Y + BTN_H,
             };
             let hbr_min = CreateSolidBrush(col_min);
-            FillRect(hdc, &btn_min, hbr_min);
+            let hpen_min = CreatePen(PS_SOLID, 1, col_min);
+            let prev_pen = SelectObject(hdc, hpen_min as HGDIOBJ);
+            let prev_brush = SelectObject(hdc, hbr_min as HGDIOBJ);
+            RoundRect(
+                hdc,
+                btn_min.left,
+                btn_min.top,
+                btn_min.right,
+                btn_min.bottom,
+                BTN_H,
+                BTN_H,
+            );
+            SelectObject(hdc, prev_brush);
+            SelectObject(hdc, prev_pen);
+            DeleteObject(hpen_min as HGDIOBJ);
             DeleteObject(hbr_min as HGDIOBJ);
-            DrawTextW(hdc, to_wide("Minimize").as_ptr(), -1, &mut btn_min,
+            let mut btn_min_text = btn_min;
+            DrawTextW(hdc, to_wide("Minimize").as_ptr(), -1, &mut btn_min_text,
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-            // Stop — destructive
+            // Stop — destructive pill button (parent parity)
             let col_stp = if hov_stp { C_DEST_H } else { C_DEST };
-            let mut btn_stp = RECT {
+            let btn_stp = RECT {
                 left: BTN_STP_X1, top: BTN_Y,
                 right: BTN_STP_X2, bottom: BTN_Y + BTN_H,
             };
             let hbr_stp = CreateSolidBrush(col_stp);
-            FillRect(hdc, &btn_stp, hbr_stp);
+            let hpen_stp = CreatePen(PS_SOLID, 1, col_stp);
+            let prev_pen = SelectObject(hdc, hpen_stp as HGDIOBJ);
+            let prev_brush = SelectObject(hdc, hbr_stp as HGDIOBJ);
+            RoundRect(
+                hdc,
+                btn_stp.left,
+                btn_stp.top,
+                btn_stp.right,
+                btn_stp.bottom,
+                BTN_H,
+                BTN_H,
+            );
+            SelectObject(hdc, prev_brush);
+            SelectObject(hdc, prev_pen);
+            DeleteObject(hpen_stp as HGDIOBJ);
             DeleteObject(hbr_stp as HGDIOBJ);
-            DrawTextW(hdc, to_wide("Stop").as_ptr(), -1, &mut btn_stp,
+            let mut btn_stp_text = btn_stp;
+            DrawTextW(hdc, to_wide("Stop").as_ptr(), -1, &mut btn_stp_text,
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
             SelectObject(hdc, prev);
