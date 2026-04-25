@@ -204,8 +204,12 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Disactivity ${{ github.ref_name }}"
-          releaseBody: "See the CHANGELOG for details."
-          releaseDraft: true
+          # Matches style of parent (published notes + installable assets). Changelog: CHANGELOG.md
+          releaseBody: |
+            **Builds in Assets:** Windows (NSIS + MSI, when built), `latest.json` and signature sidecars for the in-app updater, plus macOS / Linux / mobile artifacts as produced by this workflow.
+
+            See **[CHANGELOG](https://github.com/heza-ru/Disactivity/blob/master/CHANGELOG.md)** and compare commits for this tag.
+          releaseDraft: false
           prerelease: false
 
   build-mobile:

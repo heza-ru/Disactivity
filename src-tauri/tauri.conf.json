@@ -37,8 +37,8 @@
       "icons/icon.ico"
     ],
     "createUpdaterArtifacts": true,
-    "publisher": "holasoyender",
-    "copyright": "Copyright © 2026 holasoyender",
+    "publisher": "heza-ru",
+    "copyright": "Copyright © 2026 heza-ru. Based on Disactivity (MIT) by holasoyender",
     "shortDescription": "Discord Activity Simulator",
     "longDescription": "Disactivity allows you to simulate game activity on Discord by running fake game processes that Discord can detect.",
     "category": "Utility",
@@ -51,7 +51,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/holasoyender/disactivity/releases/latest/download/latest.json"
+        "https://github.com/heza-ru/Disactivity/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU5Mjg3QjRDOTgyNzZEOEYKUldTUGJTZVlUSHNvV1ljb3c5VGI0V0R1VEtOb2NRL1VSdi9IaUJMRERJM3RxU0lGMGlSY2wzeVgK"
     }

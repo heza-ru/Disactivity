@@ -100,7 +100,9 @@
 
 → **[Latest release (this repo)](https://github.com/heza-ru/disactivity/releases/latest)**
 
-*The parent project’s [releases](https://github.com/holasoyender/disactivity/releases) are a **different** channel — use them only when you want upstream’s artifacts.*
+**What a release usually includes (like the [parent’s](https://github.com/holasoyender/disactivity/releases) style):** versioned **Windows installers** (NSIS + MSI from CI), Tauri **updater** assets (`latest.json` plus Minisign signature files next to the bundles for in-app updates), and **per-OS** desktop builds from the matrix (macOS / Linux) when the [Build & Release](.github/workflows/build.yml) tag workflow finishes. [CHANGELOG](CHANGELOG.md) and the GitHub **Release** description list what shipped for each tag.
+
+*The parent project’s [releases](https://github.com/holasoyender/disactivity/releases) are a **different** channel — our in-app updater points at **this** repo’s `latest.json` only. Use the parent if you want upstream’s artifacts and update channel.*
 
 ---
 

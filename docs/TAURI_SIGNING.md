@@ -1,6 +1,6 @@
 # Tauri updater signing (fix: “public key found, but no private key”)
 
-`src-tauri/tauri.conf.json` has `plugins.updater.pubkey` (the **public** key). When `createUpdaterArtifacts` is true, the build also needs the **matching private key** to sign update artifacts. If only the public key is present, you get:
+`src-tauri/tauri.conf.json` has `plugins.updater.pubkey` (the **public** key) and an **endpoints** entry for this fork’s `latest.json` (currently `https://github.com/heza-ru/Disactivity/releases/latest/download/latest.json` — *not* the parent repo, so your published release artifacts match what the app checks for updates). When `createUpdaterArtifacts` is true, the build also needs the **matching private key** to sign update artifacts. If only the public key is present, you get:
 
 > A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY`…
 
