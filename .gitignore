@@ -7,6 +7,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# AI agent memory (local only)
+AGENTS.md
+
 node_modules
 dist
 dist-ssr
