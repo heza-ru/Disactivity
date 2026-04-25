@@ -36,3 +36,6 @@ signing.env.local
 # Literal `~` directory in this repo (e.g. ~/.tauri/ keys from `tauri signer generate -w ./~/.tauri/...`)
 /~/
 
+# Local agent memory file
+AGENTS.md
+
