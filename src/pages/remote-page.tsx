@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { invoke } from "@tauri-apps/api/core"
@@ -67,8 +65,12 @@ export function RemotePage() {
     }
 
     const copyAddress = async (addr: string) => {
-        const url = `http://${addr}`
-        await navigator.clipboard.writeText(url).catch(() => {})
+        // `?pin=` works in the phone browser; custom `x-pin` headers cannot be set from a link tap
+        const hasPin = pin.trim().length > 0
+        const finalUrl = hasPin
+            ? `http://${addr}/?${new URLSearchParams({ pin: pin.trim() })}`
+            : `http://${addr}/`
+        await navigator.clipboard.writeText(finalUrl).catch(() => {})
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
     }
@@ -194,7 +196,8 @@ function RemoteControlPanel({ serverInfo, pin }: { serverInfo: RemoteServerInfo 
 
     useEffect(() => {
         if (!wsUrl) return
-        const ws = new WebSocket(`${wsUrl}/api/events`)
+        const pinQ = pin.trim() ? `?pin=${encodeURIComponent(pin.trim())}` : ""
+        const ws = new WebSocket(`${wsUrl}/api/events${pinQ}`)
         ws.onmessage = (e) => {
             try {
                 const msg = JSON.parse(e.data)
@@ -203,7 +206,7 @@ function RemoteControlPanel({ serverInfo, pin }: { serverInfo: RemoteServerInfo 
         }
         wsRef.current = ws
         return () => { ws.close(); wsRef.current = null }
-    }, [wsUrl])
+    }, [wsUrl, pin])
 
     const stopGame = async (gameId: string) => {
         if (!baseUrl) return

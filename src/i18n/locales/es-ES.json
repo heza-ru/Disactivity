@@ -12,7 +12,16 @@
     "stop": "Detener"
   },
   "loading": {
-    "games": "Cargando juegos..."
+    "games": "Cargando juegos...",
+    "shell": "Cargando…"
+  },
+  "common": {
+    "close": "Cerrar"
+  },
+  "errorBoundary": {
+    "title": "Algo salió mal",
+    "defaultMessage": "Se produjo un error inesperado.",
+    "tryAgain": "Volver a intentar"
   },
   "favorites": {
     "title": "Favoritos",
@@ -62,7 +71,10 @@
     "previous": "Anterior",
     "next": "Siguiente",
     "goToPage": "Ir a página:",
-    "of": "de"
+    "of": "de",
+    "ariaPrevious": "Ir a la página anterior",
+    "ariaNext": "Ir a la página siguiente",
+    "morePages": "Más páginas"
   },
   "footer": {
     "favorite": "favorito",
@@ -97,7 +109,7 @@
     "pin": "PIN (opcional)",
     "pinPlaceholder": "PIN de 4 dígitos",
     "connectFrom": "Conéctate desde tu dispositivo",
-    "connectHint": "Abre esta dirección en el navegador de tu móvil o escanea el código QR con la app móvil de Disactivity. Los dispositivos deben estar en la misma red Wi-Fi o Bluetooth PAN.",
+    "connectHint": "Abre el enlace copiado en el móvil (misma Wi‑Fi que el PC). Si usas PIN, el enlace lo incluye para autenticar. También puedes añadir ?pin= en la URL.",
     "copy": "Copiar"
   },
   "home": {
@@ -212,6 +224,7 @@
     "inactive": "Inactivo"
   },
   "about": {
+    "mitLicense": "Licencia MIT",
     "description": "Simula actividad de juego ejecutando procesos de marcador de posición invisibles.",
     "originalCreator": "Creador Original",
     "originalCreatorRole": "Creador y Autor",

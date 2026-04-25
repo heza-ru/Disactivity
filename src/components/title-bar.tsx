@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useEffect, useState, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import {
@@ -20,7 +18,9 @@ import { relaunch } from "@tauri-apps/plugin-process"
 import { check, Update } from "@tauri-apps/plugin-updater"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { getGameIconUrl, DEFAULT_GAME_ICON } from "@/lib/game-assets"
+import { formatElapsedTime } from "@/lib/format-time"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -45,6 +45,8 @@ interface TitleBarProps {
     onStopGame?: (gameId: string) => void
     settings?: AppSettings
     autoStopMinutes?: number
+    /** Monotonic app clock, updated while games run; used for elapsed UIs. */
+    uiNow: number
 }
 
 export function TitleBar({
@@ -52,16 +54,10 @@ export function TitleBar({
     onStopGame,
     settings,
     autoStopMinutes = 15,
+    uiNow,
 }: TitleBarProps) {
     const { t } = useTranslation()
     const [isDark, setIsDark] = useState(false)
-    const [, setTick] = useState(0)
-
-    useEffect(() => {
-        if (runningGames.size === 0) return
-        const interval = setInterval(() => setTick((t) => t + 1), 1000)
-        return () => clearInterval(interval)
-    }, [runningGames.size])
 
     const [updateState, setUpdateState] = useState<UpdateState>("idle")
     const [updateVersion, setUpdateVersion] = useState<string>("")
@@ -246,23 +242,6 @@ export function TitleBar({
     const runningCount = runningGamesArray.length
     const timerLabel = `${String(autoStopMinutes).padStart(2, "0")}:00`
 
-    const formatElapsedTime = (ms: number): string => {
-        const totalSeconds = Math.floor(ms / 1000)
-        const hours = Math.floor(totalSeconds / 3600)
-        const minutes = Math.floor((totalSeconds % 3600) / 60)
-        const seconds = totalSeconds % 60
-        const pad = (n: number) => n.toString().padStart(2, "0")
-        if (hours > 0) return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
-        return `${pad(minutes)}:${pad(seconds)}`
-    }
-
-    const getGameIconUrl = (game: Game, size: number = 64): string => {
-        if (game.icon_hash) {
-            return `https://cdn.discordapp.com/app-icons/${game.id}/${game.icon_hash}.png?size=${size}&keep_aspect_ratio=false`
-        }
-        return "https://cdn.discordapp.com/embed/avatars/0.png"
-    }
-
     return (
         <header
             data-tauri-drag-region
@@ -270,7 +249,13 @@ export function TitleBar({
         >
             {/* Title */}
             <div className="flex items-center gap-2 flex-1 min-w-0" data-tauri-drag-region>
-                <img className="h-5 w-5 pointer-events-none" src="./icon.png" alt="App icon"/>
+                <img
+                    className="h-5 w-5 pointer-events-none"
+                    src="./icon.png"
+                    alt="App icon"
+                    fetchPriority="high"
+                    decoding="async"
+                />
                 <span className="font-semibold text-sm text-foreground pointer-events-none truncate max-sm:hidden">Disactivity</span>
             </div>
 
@@ -294,7 +279,7 @@ export function TitleBar({
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {runningGamesArray.map(({ game, isLoading, startTime }) => {
-                                const elapsed = Date.now() - startTime
+                                const elapsed = uiNow - startTime
                                 const autoStopMs = autoStopMinutes * 60 * 1000
                                 const autoStopEnabled = settings?.autoStopEnabled ?? true
                                 const progress = Math.min((elapsed / autoStopMs) * 100, 100)
@@ -308,8 +293,10 @@ export function TitleBar({
                                         src={getGameIconUrl(game, 64)}
                                         alt={game.name}
                                         className="h-8 w-8 rounded-md object-cover bg-muted shrink-0"
+                                        loading="lazy"
+                                        decoding="async"
                                         onError={(e) => {
-                                            (e.target as HTMLImageElement).src = "https://cdn.discordapp.com/embed/avatars/0.png"
+                                            (e.target as HTMLImageElement).src = DEFAULT_GAME_ICON
                                         }}
                                     />
                                     <div className="flex-1 min-w-0">
@@ -366,24 +353,22 @@ export function TitleBar({
                 )}
 
                 {showUpdateButton && (
-                    <TooltipProvider delayDuration={200}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    onClick={handleUpdateButtonClick}
-                                    className="h-8 w-8"
-                                    disabled={updateState === "checking" || updateState === "downloading"}
-                                >
-                                    {getUpdateButtonContent()}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                                {getUpdateTooltip()}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                onClick={handleUpdateButtonClick}
+                                className="h-8 w-8"
+                                disabled={updateState === "checking" || updateState === "downloading"}
+                            >
+                                {getUpdateButtonContent()}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            {getUpdateTooltip()}
+                        </TooltipContent>
+                    </Tooltip>
                 )}
 
                 <Button variant="secondary" size="icon" onClick={toggleTheme} className="h-8 w-8">

@@ -971,11 +971,12 @@ dependencies = [
 
 [[package]]
 name = "disactivity"
-version = "0.1.0"
+version = "0.1.0-1"
 dependencies = [
  "axum",
  "chrono",
  "dirs 5.0.1",
+ "if-addrs",
  "keyring",
  "mdns-sd",
  "reqwest 0.12.28",

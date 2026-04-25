@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { invoke } from "@tauri-apps/api/core"
@@ -15,18 +13,12 @@ import { Loader2, Star, Calendar, Monitor, Tag } from "lucide-react"
 import type { Game } from "@/components/game-card"
 import type { GameMetadata } from "@/types/discovery"
 import { releaseYear, formatIgdbRating } from "@/lib/game-metadata"
+import { getGameIconUrl, DEFAULT_GAME_ICON } from "@/lib/game-assets"
 
 interface GameDetailsDialogProps {
     game: Game | null
     open: boolean
     onOpenChange: (open: boolean) => void
-}
-
-function getGameIconUrl(game: Game, size: number = 256): string {
-    if (game.icon_hash) {
-        return `https://cdn.discordapp.com/app-icons/${game.id}/${game.icon_hash}.png?size=${size}&keep_aspect_ratio=false`
-    }
-    return "https://cdn.discordapp.com/embed/avatars/0.png"
 }
 
 export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialogProps) {
@@ -63,16 +55,20 @@ export function GameDetailsDialog({ game, open, onOpenChange }: GameDetailsDialo
                             <img
                                 src={getGameIconUrl(game, 256)}
                                 alt={game.name}
+                                loading="lazy"
+                                decoding="async"
                                 className="h-16 w-16 rounded-xl object-cover bg-muted"
                                 onError={(e) => {
                                     ;(e.target as HTMLImageElement).src =
-                                        "https://cdn.discordapp.com/embed/avatars/0.png"
+                                        DEFAULT_GAME_ICON
                                 }}
                             />
                             {metadata?.cover_url && (
                                 <img
                                     src={metadata.cover_url}
                                     alt={`${game.name} cover`}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="absolute inset-0 h-16 w-16 rounded-xl object-cover"
                                     onError={(e) => {
                                         ;(e.target as HTMLImageElement).style.display = "none"

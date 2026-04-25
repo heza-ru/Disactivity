@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { getVersion } from "@tauri-apps/api/app"
@@ -17,7 +15,13 @@ export function AboutPage() {
         <ScrollArea className="flex-1 mt-20">
             <main className="mx-auto max-w-2xl px-6 py-8 pb-12">
                 <div className="flex flex-col items-center gap-3 mb-10">
-                    <img src="./icon.png" alt="Disactivity" className="h-16 w-16 rounded-2xl shadow-lg" />
+                    <img
+                        src="./icon.png"
+                        alt="Disactivity"
+                        className="h-16 w-16 rounded-2xl shadow-lg"
+                        loading="lazy"
+                        decoding="async"
+                    />
                     <div className="text-center">
                         <h1 className="text-2xl font-bold text-foreground">Disactivity</h1>
                         <p className="text-sm text-muted-foreground">v{version}</p>
@@ -28,7 +32,7 @@ export function AboutPage() {
                 </div>
 
                 <div className="text-center text-xs text-muted-foreground mt-8">
-                    <p>MIT License</p>
+                    <p>{t("about.mitLicense")}</p>
                 </div>
             </main>
         </ScrollArea>

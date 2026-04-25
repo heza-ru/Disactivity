@@ -65,7 +65,11 @@ export function enrichDiscoveryGames(
 
         // Prefix match (only when normalized name is ≥5 chars to avoid false positives)
         if (norm.length >= 5) {
+            const n0 = norm[0]!
             for (const [discordNorm, id] of index) {
+                if (discordNorm.length > 0 && discordNorm[0] !== n0) {
+                    continue
+                }
                 if (
                     discordNorm.startsWith(norm + " ") ||
                     norm.startsWith(discordNorm + " ")

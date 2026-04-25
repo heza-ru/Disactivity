@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { Input } from "@/components/ui/input"
@@ -26,6 +24,7 @@ import {
     Settings2,
 } from "lucide-react"
 import { GameCard, type Game } from "@/components/game-card"
+import { VirtualGameList } from "@/components/virtual-game-list"
 import { DiscoverySection, HeroBanner } from "@/components/discovery-section"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -38,10 +37,12 @@ import {
     PaginationPrevious,
     PaginationEllipsis,
 } from "@/components/ui/pagination"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { AppSettings } from "@/lib/settings"
 import type { DiscoveryData } from "@/types/discovery"
 import { enrichDiscoveryGames } from "@/lib/game-metadata"
+import { getGameIconUrl, DEFAULT_GAME_ICON } from "@/lib/game-assets"
+import { useDebouncedValueWithFlush } from "@/lib/use-debounced-value"
 
 export interface RecentGame {
     id: string
@@ -61,8 +62,8 @@ interface HomePageProps {
     recentlyPlayed: RecentGame[]
     gamesById: Map<string, Game>
     discoveryData: DiscoveryData | null
-    isLoadingDiscovery: boolean
     hasRawgKey: boolean
+    uiNow: number
     onRefresh: () => void
     onStartGame: (game: Game, selectedExecutable?: string) => Promise<void>
     onStopGame: (gameId: string) => Promise<void>
@@ -72,7 +73,6 @@ interface HomePageProps {
     onAddCustomGame: (name: string, executable: string) => Promise<void>
     onDeleteCustomGame: (gameId: string) => Promise<void>
     onNavigateToSettings: () => void
-    fetchFavorites: () => Promise<void>
 }
 
 export function HomePage({
@@ -89,6 +89,7 @@ export function HomePage({
     gamesById,
     discoveryData,
     hasRawgKey,
+    uiNow,
     onRefresh,
     onStartGame,
     onStopGame,
@@ -101,7 +102,10 @@ export function HomePage({
 }: HomePageProps) {
     const { t } = useTranslation()
     const [searchQuery, setSearchQuery] = useState("")
-    const [filteredGames, setFilteredGames] = useState<Game[]>([])
+    const { debounced: debouncedQuery, flush: flushSearchDebounce } = useDebouncedValueWithFlush(
+        searchQuery,
+        250
+    )
     const [currentPage, setCurrentPage] = useState(1)
     const [addDialogOpen, setAddDialogOpen] = useState(false)
     const [newGameName, setNewGameName] = useState("")
@@ -109,54 +113,40 @@ export function HomePage({
     const [isAdding, setIsAdding] = useState(false)
     const searchRef = useRef<HTMLInputElement>(null)
     const importFileRef = useRef<HTMLInputElement>(null)
+    const scrollViewportRef = useRef<HTMLDivElement | null>(null)
     const customGameIdSet = useMemo(() => new Set(customGameIds), [customGameIds])
 
     const ITEMS_PER_PAGE = settings.itemsPerPage
 
     const scrollToTop = useCallback(() => {
-        document
-            .querySelector<HTMLDivElement>('[data-slot="scroll-area-viewport"]')
-            ?.scrollTo({ top: 0, behavior: "smooth" })
+        scrollViewportRef.current?.scrollTo({ top: 0, behavior: "smooth" })
     }, [])
 
+    const searchTerms = useMemo(() => {
+        return debouncedQuery
+            .toLowerCase()
+            .split(",")
+            .map((term) => term.trim())
+            .filter(Boolean)
+    }, [debouncedQuery])
+
+    const filteredGames = useMemo(() => {
+        if (searchTerms.length === 0) return games
+        return games.filter((game) => {
+            const gameName = game.name.toLowerCase()
+            const gameId = game.id.toLowerCase()
+            const gameAliases = game.aliases?.map((alias) => alias.toLowerCase()) || []
+            return searchTerms.some((term) => {
+                if (gameName.includes(term)) return true
+                if (gameId.includes(term)) return true
+                return gameAliases.some((alias) => alias.includes(term))
+            })
+        })
+    }, [games, searchTerms])
+
     useEffect(() => {
-        setFilteredGames(games)
         setCurrentPage(1)
-    }, [games])
-
-    const filterGames = useCallback(
-        (query: string, scroll = false) => {
-            const terms = query
-                .toLowerCase()
-                .split(",")
-                .map((term) => term.trim())
-                .filter(Boolean)
-            setCurrentPage(1)
-            if (terms.length === 0) {
-                setFilteredGames(games)
-            } else {
-                setFilteredGames(
-                    games.filter((game) => {
-                        const gameName = game.name.toLowerCase()
-                        const gameId = game.id.toLowerCase()
-                        const gameAliases = game.aliases?.map((alias) => alias.toLowerCase()) || []
-                        return terms.some((term) => {
-                            if (gameName.includes(term)) return true
-                            if (gameId.includes(term)) return true
-                            return gameAliases.some((alias) => alias.includes(term))
-                        })
-                    })
-                )
-            }
-            if (scroll) scrollToTop()
-        },
-        [games, scrollToTop]
-    )
-
-    useEffect(() => {
-        const timer = setTimeout(() => filterGames(searchQuery), 250)
-        return () => clearTimeout(timer)
-    }, [searchQuery, filterGames])
+    }, [games, debouncedQuery])
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -249,13 +239,6 @@ export function HomePage({
             .slice(0, 8)
     }, [recentlyPlayed, gamesById])
 
-    const getGameIconUrl = (game: Game, size = 64): string => {
-        if (game.icon_hash) {
-            return `https://cdn.discordapp.com/app-icons/${game.id}/${game.icon_hash}.png?size=${size}&keep_aspect_ratio=false`
-        }
-        return "https://cdn.discordapp.com/embed/avatars/0.png"
-    }
-
     // Enrich RAWG discovery games with Discord game IDs
     const enrichedTrending = useMemo(() => {
         if (!discoveryData?.trending.length) return []
@@ -281,7 +264,7 @@ export function HomePage({
     const hasDiscovery = enrichedTrending.length > 0 || enrichedNewReleases.length > 0
 
     return (
-        <ScrollArea className="flex-1 mt-20">
+        <ScrollArea className="flex-1 mt-20" viewportRef={scrollViewportRef}>
             <main className="mx-5 pb-5 overflow-hidden">
                 <div className="container mx-auto px-4 py-6 max-w-4xl overflow-hidden">
 
@@ -376,9 +359,9 @@ export function HomePage({
                                                 alt={game.name}
                                                 className="h-12 w-12 rounded-lg object-cover bg-muted shadow-sm group-hover:shadow-md transition-shadow"
                                                 loading="lazy"
+                                                decoding="async"
                                                 onError={(e) => {
-                                                    ;(e.target as HTMLImageElement).src =
-                                                        "https://cdn.discordapp.com/embed/avatars/0.png"
+                                                    ;(e.target as HTMLImageElement).src = DEFAULT_GAME_ICON
                                                 }}
                                             />
                                             {runningGames.has(game.id) && (
@@ -406,29 +389,27 @@ export function HomePage({
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === "Enter") filterGames(searchQuery)
+                                    if (e.key === "Enter") flushSearchDebounce(searchQuery)
                                 }}
                                 className="pl-10 bg-background"
                                 disabled={isLoading}
                                 aria-label={t("search.placeholder")}
                             />
                         </div>
-                        <TooltipProvider delayDuration={200}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => setAddDialogOpen(true)}
-                                        className="bg-background shrink-0"
-                                        aria-label={t("gameCard.addCustom")}
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">{t("gameCard.addCustom")}</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setAddDialogOpen(true)}
+                                    className="bg-background shrink-0"
+                                    aria-label={t("gameCard.addCustom")}
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">{t("gameCard.addCustom")}</TooltipContent>
+                        </Tooltip>
                         <Button
                             variant="outline"
                             onClick={handleRefresh}
@@ -515,54 +496,51 @@ export function HomePage({
                                             ({favoriteGames.length})
                                         </span>
                                         <div className="ml-auto flex items-center gap-1">
-                                            <TooltipProvider delayDuration={200}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6"
-                                                            onClick={onExportFavorites}
-                                                            disabled={favorites.size === 0}
-                                                            aria-label={t("favorites.export")}
-                                                        >
-                                                            <Download className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        {t("favorites.export")}
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                            <TooltipProvider delayDuration={200}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6"
-                                                            onClick={() => importFileRef.current?.click()}
-                                                            aria-label={t("favorites.import")}
-                                                        >
-                                                            <Upload className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        {t("favorites.import")}
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6"
+                                                        onClick={onExportFavorites}
+                                                        disabled={favorites.size === 0}
+                                                        aria-label={t("favorites.export")}
+                                                    >
+                                                        <Download className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    {t("favorites.export")}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6"
+                                                        onClick={() => importFileRef.current?.click()}
+                                                        aria-label={t("favorites.import")}
+                                                    >
+                                                        <Upload className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    {t("favorites.import")}
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        {favoriteGames.map((game) => (
+                                    <VirtualGameList
+                                        games={favoriteGames}
+                                        renderItem={(game) => (
                                             <GameCard
-                                                key={game.id}
                                                 game={game}
                                                 isRunning={runningGames.has(game.id)}
                                                 isLoading={loadingGames.has(game.id)}
                                                 isFavorite={true}
                                                 startTime={gameStartTimes.get(game.id)}
+                                                uiNow={uiNow}
                                                 autoStopEnabled={settings.autoStopEnabled}
                                                 autoStopMinutes={settings.autoStopMinutes}
                                                 isCustom={customGameIdSet.has(game.id)}
@@ -571,8 +549,8 @@ export function HomePage({
                                                 onToggleFavorite={onToggleFavorite}
                                                 onDelete={onDeleteCustomGame}
                                             />
-                                        ))}
-                                    </div>
+                                        )}
+                                    />
                                     <Separator className="my-4" />
                                 </div>
                             )}
@@ -580,25 +558,23 @@ export function HomePage({
                             {/* Import button when no favorites */}
                             {favoriteGames.length === 0 && (
                                 <div className="flex justify-end mb-2">
-                                    <TooltipProvider delayDuration={200}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 text-xs text-muted-foreground"
-                                                    onClick={() => importFileRef.current?.click()}
-                                                    aria-label={t("favorites.importDesc")}
-                                                >
-                                                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                                                    {t("favorites.import")}
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                {t("favorites.importDesc")}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 text-xs text-muted-foreground"
+                                                onClick={() => importFileRef.current?.click()}
+                                                aria-label={t("favorites.importDesc")}
+                                            >
+                                                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                                                {t("favorites.import")}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            {t("favorites.importDesc")}
+                                        </TooltipContent>
+                                    </Tooltip>
                                 </div>
                             )}
 
@@ -625,16 +601,18 @@ export function HomePage({
                                 </div>
                             )}
 
-                            <div className="space-y-1">
-                                {paginatedGames.length > 0 ? (
-                                    paginatedGames.map((game) => (
+                            {paginatedGames.length > 0 ? (
+                                <VirtualGameList
+                                    games={paginatedGames}
+                                    className="max-h-[min(60vh,36rem)] min-h-0 overflow-y-auto pr-1 -mr-1"
+                                    renderItem={(game) => (
                                         <GameCard
-                                            key={game.id}
                                             game={game}
                                             isRunning={runningGames.has(game.id)}
                                             isLoading={loadingGames.has(game.id)}
                                             isFavorite={favorites.has(game.id)}
                                             startTime={gameStartTimes.get(game.id)}
+                                            uiNow={uiNow}
                                             autoStopEnabled={settings.autoStopEnabled}
                                             autoStopMinutes={settings.autoStopMinutes}
                                             isCustom={customGameIdSet.has(game.id)}
@@ -643,14 +621,14 @@ export function HomePage({
                                             onToggleFavorite={onToggleFavorite}
                                             onDelete={onDeleteCustomGame}
                                         />
-                                    ))
-                                ) : filteredGames.length === 0 ? (
-                                    <div className="text-center py-12 text-muted-foreground">
-                                        <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                        <p>{t("emptyState.noGamesFound")}</p>
-                                    </div>
-                                ) : null}
-                            </div>
+                                    )}
+                                />
+                            ) : filteredGames.length === 0 ? (
+                                <div className="text-center py-12 text-muted-foreground">
+                                    <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                    <p>{t("emptyState.noGamesFound")}</p>
+                                </div>
+                            ) : null}
 
                             {totalPages > 1 && (
                                 <div className="mt-6 space-y-4">
@@ -771,7 +749,7 @@ export function HomePage({
                                 ) : (
                                     <>{t("footer.noGames")}</>
                                 )}
-<p className="text-xs opacity-60 mt-0.5">{t("shortcuts.hint")}</p>
+                                <p className="text-xs opacity-60 mt-0.5">{t("shortcuts.hint")}</p>
                             </div>
                         </>
                     )}

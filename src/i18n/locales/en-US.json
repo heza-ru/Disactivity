@@ -12,7 +12,16 @@
     "stop": "Stop"
   },
   "loading": {
-    "games": "Loading games..."
+    "games": "Loading games...",
+    "shell": "Loading…"
+  },
+  "common": {
+    "close": "Close"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "defaultMessage": "An unexpected error occurred.",
+    "tryAgain": "Try again"
   },
   "favorites": {
     "title": "Favorites",
@@ -62,7 +71,10 @@
     "previous": "Previous",
     "next": "Next",
     "goToPage": "Go to page:",
-    "of": "of"
+    "of": "of",
+    "ariaPrevious": "Go to previous page",
+    "ariaNext": "Go to next page",
+    "morePages": "More pages"
   },
   "footer": {
     "favorite": "favorite",
@@ -97,7 +109,7 @@
     "pin": "PIN (optional)",
     "pinPlaceholder": "4-digit PIN",
     "connectFrom": "Connect from your device",
-    "connectHint": "Open this address in a browser on your phone, or scan the QR code with the Disactivity mobile app. Devices must be on the same Wi-Fi network or Bluetooth PAN.",
+    "connectHint": "Open the copied link on your phone (same Wi‑Fi as this PC). If you use a PIN, the link includes it so the browser can authenticate. You can also add ?pin= to the URL manually.",
     "copy": "Copy"
   },
   "home": {
@@ -212,6 +224,7 @@
     "inactive": "Inactive"
   },
   "about": {
+    "mitLicense": "MIT License",
     "description": "Simulate game activity by running invisible placeholder processes.",
     "originalCreator": "Original Creator",
     "originalCreatorRole": "Creator & Author",

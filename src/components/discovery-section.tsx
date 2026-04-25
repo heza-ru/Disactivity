@@ -1,5 +1,3 @@
-"use client"
-
 import { useRef } from "react"
 import { ChevronLeft, ChevronRight, Play, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -29,6 +27,7 @@ function DiscoveryCard({ game, discordGame, isRunning, onPlay }: DiscoveryCardPr
                     src={game.background_image}
                     alt={game.name}
                     loading="lazy"
+                    decoding="async"
                     className="w-full h-52 object-cover transition-transform duration-300 group-hover:scale-105"
                     onError={(e) => {
                         ;(e.target as HTMLImageElement).style.display = "none"
@@ -195,6 +194,7 @@ export function HeroBanner({ game, discordGame, isRunning, onPlay }: HeroBannerP
                     alt={game.name}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     loading="eager"
+                    decoding="async"
                     onError={(e) => {
                         ;(e.target as HTMLImageElement).style.display = "none"
                     }}

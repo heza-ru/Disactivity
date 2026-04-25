@@ -18,51 +18,61 @@ use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(windows)]
-use windows_sys::Win32::Foundation::{HGDIOBJ, HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 #[cfg(windows)]
 use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE};
 #[cfg(windows)]
 use windows_sys::Win32::Graphics::Gdi::{
     BeginPaint, BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, CreateFontW, CreateSolidBrush,
-    DeleteDC, DeleteObject, DrawIconEx, DrawTextW, EndPaint, FillRect, GetClientRect,
-    SelectObject, SetBkMode, SetTextColor, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_CHARSET,
-    DEFAULT_PITCH, DI_NORMAL, DT_CENTER, DT_END_ELLIPSIS, DT_LEFT, DT_SINGLELINE, DT_VCENTER,
-    OUT_DEFAULT_PRECIS, PAINTSTRUCT, SRCCOPY,
+    DeleteDC, DeleteObject, DrawTextW, EndPaint, FillRect, HGDIOBJ, InvalidateRect, SelectObject,
+    SetBkMode, SetTextColor, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_CHARSET, DEFAULT_PITCH,
+    DT_CENTER, DT_END_ELLIPSIS, DT_LEFT, DT_SINGLELINE, DT_VCENTER, OUT_DEFAULT_PRECIS, PAINTSTRUCT,
+    SRCCOPY,
 };
 #[cfg(windows)]
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    ReleaseCapture, TME_LEAVE, TrackMouseEvent, TRACKMOUSEEVENT,
+};
+#[cfg(windows)]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, GetSystemMetrics,
-    KillTimer, LoadCursorW, LoadImageW, PostMessageW, PostQuitMessage, RegisterClassW,
-    ReleaseCapture, SendMessageW, SetTimer, ShowWindow, SystemParametersInfoW, TranslateMessage,
-    HTCAPTION, IDC_ARROW, IMAGE_ICON, LR_LOADFROMFILE, MSG, SM_CXSCREEN, SM_CYSCREEN,
-    SPI_GETWORKAREA, SW_MINIMIZE, SW_SHOWNOACTIVATE, TME_LEAVE, TRACKMOUSEEVENT, WNDCLASSW,
-    WM_CLOSE, WM_DESTROY, WM_ENDSESSION, WM_ERASEBKGND, WM_LBUTTONDOWN, WM_MOUSELEAVE,
-    WM_MOUSEMOVE, WM_NCLBUTTONDOWN, WM_PAINT, WM_QUERYENDSESSION, WM_RBUTTONDOWN, WM_SIZE,
-    WM_TIMER, CS_HREDRAW, CS_VREDRAW, WS_EX_APPWINDOW, WS_EX_TOPMOST, WS_POPUP, WS_VISIBLE,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, DrawIconEx, GetMessageW, KillTimer,
+    LoadCursorW, LoadImageW, PostQuitMessage, RegisterClassW, SendMessageW, SetTimer, ShowWindow,
+    SystemParametersInfoW, TranslateMessage, DI_NORMAL, HICON, HTCAPTION, IDC_ARROW, IMAGE_ICON,
+    LR_LOADFROMFILE, MSG, SPI_GETWORKAREA, SW_MINIMIZE, SW_SHOWNOACTIVATE, WNDCLASSW, WM_CLOSE,
+    WM_DESTROY, WM_ENDSESSION, WM_ERASEBKGND, WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_NCLBUTTONDOWN,
+    WM_PAINT, WM_QUERYENDSESSION, WM_RBUTTONDOWN, WM_SIZE, WM_TIMER, CS_HREDRAW, CS_VREDRAW,
+    WS_EX_APPWINDOW, WS_EX_TOPMOST, WS_POPUP, WS_VISIBLE,
 };
 
-// ─── Window geometry ──────────────────────────────────────────────────────────
+// winuser.h — not re-exported from WindowsAndMessaging in windows-sys 0.59
+#[cfg(windows)]
+const WM_MOUSELEAVE: u32 = 0x02a3;
+
+// ─── Window geometry (aligned with main app card width feel) ───────────────
 
 #[cfg(windows)]
-const W: i32 = 300;
+const W: i32 = 320;
 #[cfg(windows)]
-const H: i32 = 94;
+const H: i32 = 100;
+#[cfg(windows)]
+const TITLE_H: i32 = 28;
 
 // Button row
 #[cfg(windows)]
-const BTN_Y: i32 = 66;
+const BTN_Y: i32 = 70;
 #[cfg(windows)]
-const BTN_H: i32 = 22;
+const BTN_H: i32 = 24;
 #[cfg(windows)]
 const BTN_MIN_X1: i32 = 10;
 #[cfg(windows)]
-const BTN_MIN_X2: i32 = 143;
+const BTN_MIN_X2: i32 = 150;
 #[cfg(windows)]
-const BTN_STP_X1: i32 = 153;
+const BTN_STP_X1: i32 = 162;
 #[cfg(windows)]
-const BTN_STP_X2: i32 = 290;
+const BTN_STP_X2: i32 = 308;
+
 
 #[cfg(windows)]
 const TIMER_ID: usize = 1;
@@ -76,7 +86,7 @@ static HOVER_MIN: AtomicBool = AtomicBool::new(false);
 #[cfg(windows)]
 static HOVER_STP: AtomicBool = AtomicBool::new(false);
 #[cfg(windows)]
-static HICON: AtomicIsize = AtomicIsize::new(0);
+static SLAVE_ICON: AtomicIsize = AtomicIsize::new(0);
 #[cfg(windows)]
 static TRACKING: AtomicBool = AtomicBool::new(false);
 
@@ -93,11 +103,35 @@ fn to_wide(s: &str) -> Vec<u16> {
         .collect()
 }
 
-/// COLORREF is 0x00BBGGRR
+/// COLORREF is 0x00BBGGRR (matches `App.css` dark theme sRGB)
 #[cfg(windows)]
-fn rgb(r: u8, g: u8, b: u8) -> u32 {
+const fn rgb(r: u8, g: u8, b: u8) -> u32 {
     (r as u32) | ((g as u32) << 8) | ((b as u32) << 16)
 }
+
+// Dark theme — keep in sync with `src/App.css` variables
+#[cfg(windows)]
+const C_BG: u32 = rgb(37, 37, 42);
+#[cfg(windows)]
+const C_SURFACE: u32 = rgb(48, 48, 54);
+#[cfg(windows)]
+const C_BORDER: u32 = rgb(42, 42, 48);
+#[cfg(windows)]
+const C_TEXT: u32 = rgb(250, 250, 250);
+#[cfg(windows)]
+const C_MUTED: u32 = rgb(160, 161, 168);
+#[cfg(windows)]
+const C_PRIMARY: u32 = rgb(88, 101, 242);
+#[cfg(windows)]
+const C_PRIMARY_H: u32 = rgb(71, 82, 196);
+#[cfg(windows)]
+const C_DEST: u32 = rgb(239, 68, 68);
+#[cfg(windows)]
+const C_DEST_H: u32 = rgb(220, 38, 38);
+#[cfg(windows)]
+const C_STATUS: u32 = rgb(34, 197, 94);
+#[cfg(windows)]
+const C_TIME: u32 = rgb(88, 101, 242);
 
 #[cfg(windows)]
 fn elapsed_secs() -> u64 {
@@ -138,7 +172,6 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
         }
 
         _ if msg == WM_TIMER => {
-            use windows_sys::Win32::UI::WindowsAndMessaging::InvalidateRect;
             InvalidateRect(hwnd, null_mut(), 0);
             0
         }
@@ -155,22 +188,27 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             let hbm = CreateCompatibleBitmap(hdc_real, W, H);
             let hbm_old = SelectObject(hdc, hbm as HGDIOBJ);
 
-            // ── Background ──
-            let bg = rgb(30, 30, 46);
-            let mut full = RECT { left: 0, top: 0, right: W, bottom: H };
-            let hbr_bg = CreateSolidBrush(bg);
+            // ── Background (dark.app —background) ──
+            let full = RECT { left: 0, top: 0, right: W, bottom: H };
+            let hbr_bg = CreateSolidBrush(C_BG);
             FillRect(hdc, &full, hbr_bg);
             DeleteObject(hbr_bg as HGDIOBJ);
 
-            // ── Title bar strip (top 26px) ──
-            let mut title_rect = RECT { left: 0, top: 0, right: W, bottom: 26 };
-            let hbr_title = CreateSolidBrush(rgb(20, 20, 36));
+            // ── Title bar (card / surface) ──
+            let title_rect = RECT { left: 0, top: 0, right: W, bottom: TITLE_H };
+            let hbr_title = CreateSolidBrush(C_SURFACE);
             FillRect(hdc, &title_rect, hbr_title);
             DeleteObject(hbr_title as HGDIOBJ);
 
-            // ── Green running dot (top-right of title bar) ──
-            let mut dot = RECT { left: W - 20, top: 8, right: W - 8, bottom: 20 };
-            let hbr_dot = CreateSolidBrush(rgb(100, 220, 100));
+            // Subtle border under title (matches app border color)
+            let br_line = RECT { left: 0, top: TITLE_H - 1, right: W, bottom: TITLE_H };
+            let hbr_br = CreateSolidBrush(C_BORDER);
+            FillRect(hdc, &br_line, hbr_br);
+            DeleteObject(hbr_br as HGDIOBJ);
+
+            // Status dot (running — same idea as in-app “live” indicators)
+            let dot = RECT { left: W - 20, top: 8, right: W - 8, bottom: 20 };
+            let hbr_dot = CreateSolidBrush(C_STATUS);
             FillRect(hdc, &dot, hbr_dot);
             DeleteObject(hbr_dot as HGDIOBJ);
 
@@ -188,27 +226,37 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
                 to_wide("Segoe UI").as_ptr(),
             );
             let prev = SelectObject(hdc, hfont_sm as HGDIOBJ);
-            SetTextColor(hdc, rgb(180, 180, 200));
+            SetTextColor(hdc, C_TEXT);
 
             let name = GAME_NAME_WIDE.get()
                 .cloned()
                 .unwrap_or_else(|| to_wide("Game Running"));
-            let mut nr = RECT { left: 10, top: 0, right: W - 24, bottom: 26 };
+            let mut nr = RECT { left: 10, top: 0, right: W - 24, bottom: TITLE_H };
             DrawTextW(hdc, name.as_ptr(), -1, &mut nr,
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
             SelectObject(hdc, prev);
             DeleteObject(hfont_sm as HGDIOBJ);
 
-            // ── Game icon (32×32 at left of content area) ──
-            let hicon = HICON.load(Ordering::Relaxed) as isize;
+            // ── Game icon (32×32 at left of content) ──
+            let hicon = SLAVE_ICON.load(Ordering::Relaxed) as isize;
             if hicon != 0 {
-                DrawIconEx(hdc, 10, 29, hicon, 32, 32, 0, 0, DI_NORMAL);
+                DrawIconEx(
+                    hdc,
+                    10,
+                    TITLE_H + 2,
+                    hicon as HICON,
+                    32,
+                    32,
+                    0,
+                    null_mut(),
+                    DI_NORMAL,
+                );
             }
 
-            // ── Elapsed time (large, green) ──
+            // Elapsed (discord blurple, matches --primary)
             let hfont_time = CreateFontW(
-                24, 0, 0, 0, 700, 0, 0, 0,
+                23, 0, 0, 0, 600, 0, 0, 0,
                 DEFAULT_CHARSET as u32,
                 OUT_DEFAULT_PRECIS as u32,
                 CLIP_DEFAULT_PRECIS as u32,
@@ -217,11 +265,11 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
                 to_wide("Segoe UI").as_ptr(),
             );
             let prev = SelectObject(hdc, hfont_time as HGDIOBJ);
-            SetTextColor(hdc, rgb(166, 227, 161));
+            SetTextColor(hdc, C_TIME);
 
             let time_str = format_time(elapsed_secs());
             let time_wide = to_wide(&time_str);
-            let mut tr = RECT { left: 50, top: 26, right: W - 8, bottom: 64 };
+            let mut tr = RECT { left: 50, top: TITLE_H, right: W - 8, bottom: BTN_Y - 2 };
             DrawTextW(hdc, time_wide.as_ptr(), -1, &mut tr,
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -239,14 +287,14 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
                 to_wide("Segoe UI").as_ptr(),
             );
             let prev = SelectObject(hdc, hfont_btn as HGDIOBJ);
-            SetTextColor(hdc, rgb(255, 255, 255));
+            SetTextColor(hdc, C_TEXT);
             SetBkMode(hdc, 1);
 
             let hov_min = HOVER_MIN.load(Ordering::Relaxed);
             let hov_stp = HOVER_STP.load(Ordering::Relaxed);
 
-            // Minimize button
-            let col_min = if hov_min { rgb(37, 99, 235) } else { rgb(59, 130, 246) };
+            // Minimize — primary (same as app Button default)
+            let col_min = if hov_min { C_PRIMARY_H } else { C_PRIMARY };
             let mut btn_min = RECT {
                 left: BTN_MIN_X1, top: BTN_Y,
                 right: BTN_MIN_X2, bottom: BTN_Y + BTN_H,
@@ -257,8 +305,8 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             DrawTextW(hdc, to_wide("Minimize").as_ptr(), -1, &mut btn_min,
                 DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-            // Stop button
-            let col_stp = if hov_stp { rgb(220, 38, 38) } else { rgb(239, 68, 68) };
+            // Stop — destructive
+            let col_stp = if hov_stp { C_DEST_H } else { C_DEST };
             let mut btn_stp = RECT {
                 left: BTN_STP_X1, top: BTN_Y,
                 right: BTN_STP_X2, bottom: BTN_Y + BTN_H,
@@ -319,7 +367,6 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
                 HOVER_STP.swap(new_hs, Ordering::Relaxed) != new_hs;
 
             if changed {
-                use windows_sys::Win32::UI::WindowsAndMessaging::InvalidateRect;
                 InvalidateRect(hwnd, null_mut(), 0);
             }
 
@@ -331,7 +378,6 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
                     hwndTrack: hwnd,
                     dwHoverTime: 0,
                 };
-                use windows_sys::Win32::UI::WindowsAndMessaging::TrackMouseEvent;
                 TrackMouseEvent(&mut tme);
             }
             0
@@ -341,7 +387,6 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             TRACKING.store(false, Ordering::Relaxed);
             HOVER_MIN.store(false, Ordering::Relaxed);
             HOVER_STP.store(false, Ordering::Relaxed);
-            use windows_sys::Win32::UI::WindowsAndMessaging::InvalidateRect;
             InvalidateRect(hwnd, null_mut(), 0);
             0
         }
@@ -407,7 +452,7 @@ fn main() {
         let hicon = if let Some(ref path) = icon_path {
             let wide = to_wide(path);
             let h = LoadImageW(
-                0,
+                null_mut(),
                 wide.as_ptr(),
                 IMAGE_ICON,
                 0, 0,
@@ -415,12 +460,12 @@ fn main() {
             ) as isize;
             if h != 0 { h } else {
                 // Fallback: system default application icon
-                LoadImageW(0, 32512usize as *const u16, IMAGE_ICON, 0, 0, 0) as isize
+                LoadImageW(null_mut(), 32512usize as *const u16, IMAGE_ICON, 0, 0, 0) as isize
             }
         } else {
-            LoadImageW(0, 32512usize as *const u16, IMAGE_ICON, 0, 0, 0) as isize
+            LoadImageW(null_mut(), 32512usize as *const u16, IMAGE_ICON, 0, 0, 0) as isize
         };
-        HICON.store(hicon, Ordering::Relaxed);
+        SLAVE_ICON.store(hicon, Ordering::Relaxed);
 
         let wc = WNDCLASSW {
             style: CS_HREDRAW | CS_VREDRAW,
@@ -428,9 +473,9 @@ fn main() {
             cbClsExtra: 0,
             cbWndExtra: 0,
             hInstance: hinstance,
-            hIcon: hicon,
-            hCursor: LoadCursorW(0, IDC_ARROW),
-            hbrBackground: 0,
+            hIcon: hicon as HICON,
+            hCursor: LoadCursorW(null_mut(), IDC_ARROW),
+            hbrBackground: null_mut(),
             lpszMenuName: null_mut(),
             lpszClassName: class_name.as_ptr(),
         };
@@ -456,7 +501,7 @@ fn main() {
         let corner: u32 = 2; // DWMWCP_ROUND
         let _ = DwmSetWindowAttribute(
             hwnd,
-            DWMWA_WINDOW_CORNER_PREFERENCE,
+            DWMWA_WINDOW_CORNER_PREFERENCE as u32,
             &corner as *const u32 as *const _,
             4,
         );

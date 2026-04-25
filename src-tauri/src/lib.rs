@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{Read, Write as IoWrite};
+use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::sync::Mutex;
@@ -18,7 +19,6 @@ const DISCORD_NON_GAMES_API_URL: &str = "https://discord.com/api/v9/applications
 const REMOTE_DEFAULT_PORT: u16 = 7523;
 
 const CACHE_FILE_NAME: &str = "disactivity_games_cache.json";
-const FAVORITES_FILE_NAME: &str = "disactivity_favorites.json";
 const CUSTOM_GAMES_FILE_NAME: &str = "disactivity_custom_games.json";
 const API_KEYS_FILE_NAME: &str = "disactivity_api_keys.json";
 const METADATA_CACHE_FILE_NAME: &str = "disactivity_metadata_cache.json";
@@ -32,6 +32,8 @@ const METADATA_CACHE_EXPIRY_DAYS: i64 = 7;
 const DISCOVERY_CACHE_EXPIRY_HOURS: i64 = 24;
 const METADATA_CACHE_MAX_ENTRIES: usize = 500;
 const KEYRING_SERVICE: &str = "disactivity";
+
+mod favorites;
 
 #[cfg(target_os = "windows")]
 const SLAVE_EXE: &[u8] = include_bytes!("../slave/target/release/slave.exe");
@@ -68,6 +70,8 @@ struct AppState {
     remote_server_shutdown: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     remote_event_tx: Mutex<Option<broadcast::Sender<String>>>,
     remote_port: Mutex<u16>,
+    /// `true` when the remote server was started with a non-empty PIN
+    remote_pin_protected: Mutex<bool>,
 }
 
 fn lock_or_recover<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -585,25 +589,6 @@ fn is_cache_valid(cache: &CacheData) -> bool {
     Utc::now().signed_duration_since(cache.timestamp).num_days() < CACHE_EXPIRY_DAYS
 }
 
-// ─── Favorites ────────────────────────────────────────────────────────────────
-
-fn get_favorites_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|p| p.join("disactivity").join(FAVORITES_FILE_NAME))
-}
-
-fn read_favorites() -> HashSet<String> {
-    let Some(path) = get_favorites_path() else { return HashSet::new() };
-    let Ok(content) = fs::read_to_string(&path) else { return HashSet::new() };
-    serde_json::from_str(&content).unwrap_or_default()
-}
-
-fn write_favorites(favorites: &HashSet<String>) -> Result<(), String> {
-    let path = get_favorites_path().ok_or("Could not determine config directory")?;
-    if let Some(p) = path.parent() { fs::create_dir_all(p).map_err(|e| e.to_string())?; }
-    fs::write(&path, serde_json::to_string(favorites).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
-}
-
 // ─── Custom games ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1024,6 +1009,21 @@ fn run_idle_watcher(
     }
 }
 
+fn set_idle_stop_impl(
+    state: &AppState,
+    app: tauri::AppHandle,
+    enabled: bool,
+    minutes: u32,
+) {
+    drop(lock_or_recover(&state.idle_watcher_shutdown).take());
+    if enabled && minutes > 0 {
+        let threshold_secs = minutes as u64 * 60;
+        let (tx, rx) = std::sync::mpsc::channel::<()>();
+        thread::spawn(move || run_idle_watcher(threshold_secs, app, rx));
+        *lock_or_recover(&state.idle_watcher_shutdown) = Some(tx);
+    }
+}
+
 #[tauri::command]
 fn set_idle_stop(
     enabled: bool,
@@ -1031,15 +1031,7 @@ fn set_idle_stop(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    // Always stop the existing watcher first
-    drop(lock_or_recover(&state.idle_watcher_shutdown).take());
-
-    if enabled && minutes > 0 {
-        let threshold_secs = minutes as u64 * 60;
-        let (tx, rx) = std::sync::mpsc::channel::<()>();
-        thread::spawn(move || run_idle_watcher(threshold_secs, app, rx));
-        *lock_or_recover(&state.idle_watcher_shutdown) = Some(tx);
-    }
+    set_idle_stop_impl(state.inner(), app, enabled, minutes);
     Ok(())
 }
 
@@ -1152,33 +1144,14 @@ fn get_running_games(state: tauri::State<'_, AppState>) -> Result<Vec<String>, S
     Ok(lock_or_recover(&state.running_games).keys().cloned().collect())
 }
 
+fn set_minimize_to_tray_impl(state: &AppState, enabled: bool) {
+    *lock_or_recover(&state.minimize_to_tray) = enabled;
+}
+
 #[tauri::command]
 fn set_minimize_to_tray(enabled: bool, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    *lock_or_recover(&state.minimize_to_tray) = enabled;
+    set_minimize_to_tray_impl(state.inner(), enabled);
     Ok(())
-}
-
-// ─── Favorites ────────────────────────────────────────────────────────────────
-
-#[tauri::command]
-fn get_favorites() -> Vec<String> { read_favorites().into_iter().collect() }
-
-#[tauri::command]
-fn add_favorite(game_id: String) -> Result<(), String> {
-    let mut f = read_favorites(); f.insert(game_id); write_favorites(&f)
-}
-
-#[tauri::command]
-fn remove_favorite(game_id: String) -> Result<(), String> {
-    let mut f = read_favorites(); f.remove(&game_id); write_favorites(&f)
-}
-
-#[tauri::command]
-fn toggle_favorite(game_id: String) -> Result<bool, String> {
-    let mut f = read_favorites();
-    let is_fav = if f.contains(&game_id) { f.remove(&game_id); false } else { f.insert(game_id); true };
-    write_favorites(&f)?;
-    Ok(is_fav)
 }
 
 // ─── Presence Profiles ────────────────────────────────────────────────────────
@@ -1360,14 +1333,22 @@ fn remove_schedule(id: String) -> Result<(), String> {
     write_schedules(&schedules)
 }
 
-#[tauri::command]
-fn set_schedule_watcher(enabled: bool, state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+fn set_schedule_watcher_impl(
+    state: &AppState,
+    app: tauri::AppHandle,
+    enabled: bool,
+) {
     drop(lock_or_recover(&state.schedule_watcher_shutdown).take());
     if enabled {
         let (tx, rx) = std::sync::mpsc::channel::<()>();
         thread::spawn(move || run_schedule_watcher(app, rx));
         *lock_or_recover(&state.schedule_watcher_shutdown) = Some(tx);
     }
+}
+
+#[tauri::command]
+fn set_schedule_watcher(enabled: bool, state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+    set_schedule_watcher_impl(state.inner(), app, enabled);
     Ok(())
 }
 
@@ -1539,12 +1520,16 @@ fn run_media_watcher(client_id: String, app: tauri::AppHandle, rx: std::sync::mp
     drop(ipc_shutdown);
 }
 
-#[tauri::command]
-fn set_media_watcher(enabled: bool, state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+fn set_media_watcher_impl(
+    state: &AppState,
+    app: tauri::AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
     drop(lock_or_recover(&state.media_watcher_shutdown).take());
     if enabled {
         let keys = read_api_keys();
-        let client_id = keys.media_client_id
+        let client_id = keys
+            .media_client_id
             .filter(|k| !k.trim().is_empty())
             .ok_or("No media Discord client ID configured")?;
         let (tx, rx) = std::sync::mpsc::channel::<()>();
@@ -1552,6 +1537,11 @@ fn set_media_watcher(enabled: bool, state: tauri::State<'_, AppState>, app: taur
         *lock_or_recover(&state.media_watcher_shutdown) = Some(tx);
     }
     Ok(())
+}
+
+#[tauri::command]
+fn set_media_watcher(enabled: bool, state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+    set_media_watcher_impl(state.inner(), app, enabled)
 }
 
 #[tauri::command]
@@ -1703,12 +1693,16 @@ fn run_ide_watcher(client_id: String, app: tauri::AppHandle, rx: std::sync::mpsc
     drop(ipc_shutdown);
 }
 
-#[tauri::command]
-fn set_ide_watcher(enabled: bool, state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+fn set_ide_watcher_impl(
+    state: &AppState,
+    app: tauri::AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
     drop(lock_or_recover(&state.ide_watcher_shutdown).take());
     if enabled {
         let keys = read_api_keys();
-        let client_id = keys.ide_client_id
+        let client_id = keys
+            .ide_client_id
             .filter(|k| !k.trim().is_empty())
             .ok_or("No IDE Discord client ID configured")?;
         let (tx, rx) = std::sync::mpsc::channel::<()>();
@@ -1719,18 +1713,131 @@ fn set_ide_watcher(enabled: bool, state: tauri::State<'_, AppState>, app: tauri:
 }
 
 #[tauri::command]
+fn set_ide_watcher(enabled: bool, state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+    set_ide_watcher_impl(state.inner(), app, enabled)
+}
+
+/// Applies tray, idle, schedule, media, and IDE startup settings in one IPC round trip.
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct StartupUiSettings {
+    minimize_to_tray: bool,
+    idle_stop_enabled: bool,
+    idle_stop_minutes: u32,
+    schedule_enabled: bool,
+    media_enabled: bool,
+    ide_enabled: bool,
+}
+
+#[tauri::command]
+fn apply_startup_ui_settings(
+    s: StartupUiSettings,
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    set_minimize_to_tray_impl(state.inner(), s.minimize_to_tray);
+    set_idle_stop_impl(
+        state.inner(),
+        app.clone(),
+        s.idle_stop_enabled,
+        s.idle_stop_minutes,
+    );
+    set_schedule_watcher_impl(state.inner(), app.clone(), s.schedule_enabled);
+    if let Err(e) = set_media_watcher_impl(state.inner(), app.clone(), s.media_enabled) {
+        eprintln!("[Disactivity] set_media_watcher: {e}");
+    }
+    if let Err(e) = set_ide_watcher_impl(state.inner(), app, s.ide_enabled) {
+        eprintln!("[Disactivity] set_ide_watcher: {e}");
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn get_ide_status() -> Option<IdeActivity> { get_ide_activity() }
 
 // ─── Remote control server ────────────────────────────────────────────────────
 
-fn get_local_ips(port: u16) -> Vec<String> {
-    if let Ok(sock) = std::net::UdpSocket::bind("0.0.0.0:0") {
-        let _ = sock.connect("8.8.8.8:80");
-        if let Ok(addr) = sock.local_addr() {
-            return vec![format!("{}:{}", addr.ip(), port)];
+#[derive(serde::Deserialize, Default)]
+struct RemoteQueryPin {
+    #[serde(default)]
+    pin: Option<String>,
+}
+
+fn remote_request_authenticated(
+    expected: &Option<String>,
+    headers: &axum::http::HeaderMap,
+    q_pin: Option<&str>,
+) -> bool {
+    use axum::http::header::AUTHORIZATION;
+    let need = match expected {
+        None => return true,
+        Some(s) if s.is_empty() => return true,
+        Some(s) => s.as_str(),
+    };
+    if let Some(p) = headers
+        .get("x-pin")
+        .and_then(|v| v.to_str().ok()) {
+        if p == need { return true; }
+    }
+    if let Some(p) = q_pin {
+        if !p.is_empty() && p == need { return true; }
+    }
+    if let Some(Ok(h)) = headers.get(AUTHORIZATION).map(|a| a.to_str()) {
+        for prefix in ["Bearer ", "bearer "] {
+            if let Some(t) = h.strip_prefix(prefix) {
+                if t.trim() == need { return true; }
+            }
         }
     }
-    vec![]
+    false
+}
+
+/// LAN IPv4 addresses, stable order (typical private ranges first). Fallback: UDP self-route, then `127.0.0.1`.
+fn get_local_ips(port: u16) -> Vec<String> {
+    let mut v: Vec<Ipv4Addr> = Vec::new();
+    if let Ok(list) = if_addrs::get_if_addrs() {
+        for iface in list {
+            if let if_addrs::IfAddr::V4(a) = iface.addr {
+                if !a.ip.is_loopback() {
+                    v.push(a.ip);
+                }
+            }
+        }
+    }
+    if v.is_empty() {
+        if let Ok(sock) = std::net::UdpSocket::bind("0.0.0.0:0") {
+            let _ = sock.connect("8.8.8.8:80");
+            if let Ok(addr) = sock.local_addr() {
+                if let std::net::IpAddr::V4(ip) = addr.ip() {
+                    v.push(ip);
+                }
+            }
+        }
+    }
+    v.sort_unstable_by_key(|a: &Ipv4Addr| ipv4_sort_key(a));
+    v.dedup();
+    if v.is_empty() {
+        return vec![format!("127.0.0.1:{}", port)];
+    }
+    v.into_iter()
+        .map(|a| format!("{}:{}", a, port))
+        .collect()
+}
+
+fn ipv4_sort_key(a: &Ipv4Addr) -> (u8, u32) {
+    let b = a.octets();
+    let tier: u8 = if b[0] == 10 {
+        0
+    } else if b[0] == 192 && b[1] == 168 {
+        1
+    } else if b[0] == 172 && (16..=31).contains(&b[1]) {
+        2
+    } else if b[0] == 100 && (64..=127).contains(&b[1]) {
+        3
+    } else {
+        4
+    };
+    (tier, a.to_bits())
 }
 
 fn build_remote_status(state: &AppState) -> RemoteStatus {
@@ -1752,6 +1859,7 @@ async fn run_remote_server(
 ) {
     use axum::{
         Router,
+        extract::Query,
         routing::{delete, get, post},
         extract::ws::{Message, WebSocket, WebSocketUpgrade},
         http::{HeaderMap, StatusCode},
@@ -1768,17 +1876,6 @@ async fn run_remote_server(
         event_tx: broadcast::Sender<String>,
     }
 
-    fn auth_ok(headers: &HeaderMap, pin: &Option<String>) -> bool {
-        match pin {
-            None => true,
-            Some(p) => headers
-                .get("x-pin")
-                .and_then(|v| v.to_str().ok())
-                .map(|v| v == p.as_str())
-                .unwrap_or(false),
-        }
-    }
-
     fn unauth() -> Response {
         (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "PIN required"}))).into_response()
     }
@@ -1786,13 +1883,18 @@ async fn run_remote_server(
     let ctx = Arc::new(Ctx { app, pin, event_tx });
 
     let app_routes = Router::new()
+        // Mobile: serve web UI (opens in phone browser) — was 404 on `/` before
+        .route(
+            "/",
+            get(|| async { axum::response::Html(include_str!("remote_landing.html")) }),
+        )
         // GET /api/status
         .route("/api/status", get({
             let ctx = ctx.clone();
-            move |headers: HeaderMap| {
+            move |Query(q): Query<RemoteQueryPin>, headers: HeaderMap| {
                 let ctx = ctx.clone();
                 async move {
-                    if !auth_ok(&headers, &ctx.pin) { return unauth(); }
+                    if !remote_request_authenticated(&ctx.pin, &headers, q.pin.as_deref()) { return unauth(); }
                     if let Some(s) = ctx.app.try_state::<AppState>() {
                         Json(build_remote_status(s.inner())).into_response()
                     } else {
@@ -1804,10 +1906,10 @@ async fn run_remote_server(
         // GET /api/games
         .route("/api/games", get({
             let ctx = ctx.clone();
-            move |headers: HeaderMap| {
+            move |Query(q): Query<RemoteQueryPin>, headers: HeaderMap| {
                 let ctx = ctx.clone();
                 async move {
-                    if !auth_ok(&headers, &ctx.pin) { return unauth(); }
+                    if !remote_request_authenticated(&ctx.pin, &headers, q.pin.as_deref()) { return unauth(); }
                     let mut games = read_cache().map(|c| c.games).unwrap_or_default();
                     // Append custom games (converted to Game shape)
                     let custom_as_games: Vec<Game> = read_custom_games().into_iter().map(|cg| Game {
@@ -1825,10 +1927,10 @@ async fn run_remote_server(
         // POST /api/games/start  body: {"game_id": "..."}
         .route("/api/games/start", post({
             let ctx = ctx.clone();
-            move |headers: HeaderMap, Json(body): Json<serde_json::Value>| {
+            move |Query(q): Query<RemoteQueryPin>, headers: HeaderMap, Json(body): Json<serde_json::Value>| {
                 let ctx = ctx.clone();
                 async move {
-                    if !auth_ok(&headers, &ctx.pin) { return unauth(); }
+                    if !remote_request_authenticated(&ctx.pin, &headers, q.pin.as_deref()) { return unauth(); }
                     let game_id = match body["game_id"].as_str() {
                         Some(id) => id.to_string(),
                         None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "game_id required"}))).into_response(),
@@ -1879,10 +1981,10 @@ async fn run_remote_server(
         // POST /api/games/stop  body: {"game_id": "..."}
         .route("/api/games/stop", post({
             let ctx = ctx.clone();
-            move |headers: HeaderMap, Json(body): Json<serde_json::Value>| {
+            move |Query(q): Query<RemoteQueryPin>, headers: HeaderMap, Json(body): Json<serde_json::Value>| {
                 let ctx = ctx.clone();
                 async move {
-                    if !auth_ok(&headers, &ctx.pin) { return unauth(); }
+                    if !remote_request_authenticated(&ctx.pin, &headers, q.pin.as_deref()) { return unauth(); }
                     let game_id = match body["game_id"].as_str() {
                         Some(id) => id.to_string(),
                         None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "game_id required"}))).into_response(),
@@ -1901,10 +2003,10 @@ async fn run_remote_server(
         // GET /api/profiles
         .route("/api/profiles", get({
             let ctx = ctx.clone();
-            move |headers: HeaderMap| {
+            move |Query(q): Query<RemoteQueryPin>, headers: HeaderMap| {
                 let ctx = ctx.clone();
                 async move {
-                    if !auth_ok(&headers, &ctx.pin) { return unauth(); }
+                    if !remote_request_authenticated(&ctx.pin, &headers, q.pin.as_deref()) { return unauth(); }
                     Json(read_profiles()).into_response()
                 }
             }
@@ -1912,10 +2014,10 @@ async fn run_remote_server(
         // POST /api/profiles/activate  body: {"profile_id": "..."}
         .route("/api/profiles/activate", post({
             let ctx = ctx.clone();
-            move |headers: HeaderMap, Json(body): Json<serde_json::Value>| {
+            move |Query(q): Query<RemoteQueryPin>, headers: HeaderMap, Json(body): Json<serde_json::Value>| {
                 let ctx = ctx.clone();
                 async move {
-                    if !auth_ok(&headers, &ctx.pin) { return unauth(); }
+                    if !remote_request_authenticated(&ctx.pin, &headers, q.pin.as_deref()) { return unauth(); }
                     let pid = match body["profile_id"].as_str() {
                         Some(id) => id.to_string(),
                         None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "profile_id required"}))).into_response(),
@@ -1940,10 +2042,10 @@ async fn run_remote_server(
         // DELETE /api/presence — stop all custom presence
         .route("/api/presence", delete({
             let ctx = ctx.clone();
-            move |headers: HeaderMap| {
+            move |Query(q): Query<RemoteQueryPin>, headers: HeaderMap| {
                 let ctx = ctx.clone();
                 async move {
-                    if !auth_ok(&headers, &ctx.pin) { return unauth(); }
+                    if !remote_request_authenticated(&ctx.pin, &headers, q.pin.as_deref()) { return unauth(); }
                     if let Some(s) = ctx.app.try_state::<AppState>() {
                         drop(lock_or_recover(&s.custom_presence_shutdown).take());
                     }
@@ -1954,10 +2056,10 @@ async fn run_remote_server(
         // GET /api/events — WebSocket event stream
         .route("/api/events", get({
             let ctx = ctx.clone();
-            move |headers: HeaderMap, ws: WebSocketUpgrade| {
+            move |Query(q): Query<RemoteQueryPin>, headers: HeaderMap, ws: WebSocketUpgrade| {
                 let ctx = ctx.clone();
                 async move {
-                    if !auth_ok(&headers, &ctx.pin) { return unauth(); }
+                    if !remote_request_authenticated(&ctx.pin, &headers, q.pin.as_deref()) { return unauth(); }
                     let mut rx = ctx.event_tx.subscribe();
                     ws.on_upgrade(move |mut socket: WebSocket| async move {
                         loop {
@@ -2036,6 +2138,8 @@ async fn set_remote_server(
 
     let actual_port = port.unwrap_or(REMOTE_DEFAULT_PORT);
 
+    *lock_or_recover(&state.remote_pin_protected) = false;
+
     if !enabled {
         return Ok(RemoteServerInfo {
             port: actual_port,
@@ -2044,6 +2148,10 @@ async fn set_remote_server(
             running: false,
         });
     }
+
+    let pin_effective = pin
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
 
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], actual_port));
     let listener = tokio::net::TcpListener::bind(addr).await
@@ -2055,9 +2163,10 @@ async fn set_remote_server(
     *lock_or_recover(&state.remote_server_shutdown) = Some(shutdown_tx);
     *lock_or_recover(&state.remote_event_tx) = Some(event_tx.clone());
     *lock_or_recover(&state.remote_port) = actual_port;
+    *lock_or_recover(&state.remote_pin_protected) = pin_effective.is_some();
 
     let app_clone = app.clone();
-    let pin_clone = pin.clone();
+    let pin_clone = pin_effective.clone();
     let etx = event_tx.clone();
     tokio::spawn(async move {
         run_remote_server(listener, pin_clone, app_clone, etx, shutdown_rx).await;
@@ -2066,7 +2175,7 @@ async fn set_remote_server(
     Ok(RemoteServerInfo {
         port: actual_port,
         addresses: get_local_ips(actual_port),
-        pin_required: pin.is_some(),
+        pin_required: pin_effective.is_some(),
         running: true,
     })
 }
@@ -2075,10 +2184,11 @@ async fn set_remote_server(
 fn get_remote_server_info(state: tauri::State<'_, AppState>) -> RemoteServerInfo {
     let running = lock_or_recover(&state.remote_server_shutdown).is_some();
     let port = *lock_or_recover(&state.remote_port);
+    let pin_req = *lock_or_recover(&state.remote_pin_protected);
     RemoteServerInfo {
         port,
         addresses: if running { get_local_ips(port) } else { vec![] },
-        pin_required: false,
+        pin_required: if running { pin_req } else { false },
         running,
     }
 }
@@ -2136,6 +2246,7 @@ pub fn run() {
             remote_server_shutdown: Mutex::new(None),
             remote_event_tx: Mutex::new(None),
             remote_port: Mutex::new(REMOTE_DEFAULT_PORT),
+            remote_pin_protected: Mutex::new(false),
         })
         .setup(|app| {
             // Apply Mica backdrop on Windows 11; no-op on other platforms
@@ -2188,10 +2299,11 @@ pub fn run() {
             start_game,
             stop_game,
             get_running_games,
-            get_favorites,
-            add_favorite,
-            remove_favorite,
-            toggle_favorite,
+            favorites::get_favorites,
+            favorites::add_favorite,
+            favorites::add_favorites_if_missing,
+            favorites::remove_favorite,
+            favorites::toggle_favorite,
             set_minimize_to_tray,
             get_custom_games,
             add_custom_game,
@@ -2217,6 +2329,7 @@ pub fn run() {
             get_now_playing_status,
             set_ide_watcher,
             get_ide_status,
+            apply_startup_ui_settings,
             set_remote_server,
             get_remote_server_info,
         ])

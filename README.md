@@ -1,224 +1,221 @@
-<p align="center">
-  <img src="public/icon.png" alt="Disactivity Logo" width="128" height="128">
-</p>
+<div align="center">
 
-<h1 align="center">Disactivity</h1>
+<img src="public/icon.png" alt="Disactivity" width="128" height="128" />
 
-<p align="center">
-  <strong>Game Activity Simulator</strong><br>
-  Simulate game activity by running invisible placeholder processes that can be detected by activity-tracking software.
-</p>
+# Disactivity
 
-<p align="center">
-  <a href="https://github.com/holasoyender/disactivity/releases/latest">
-    <img src="https://img.shields.io/github/v/release/holasoyender/disactivity?style=flat-square" alt="Latest Release">
-  </a>
-  <a href="https://github.com/holasoyender/disactivity/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/holasoyender/disactivity?style=flat-square" alt="License">
-  </a>
-  <a href="https://github.com/holasoyender/disactivity/stargazers">
-    <img src="https://img.shields.io/github/stars/holasoyender/disactivity?style=flat-square" alt="Stars">
-  </a>
-</p>
+**Simulate game activity** from the desktop — lightweight, open source, built with **Tauri 2** and **React**.
+
+[![Release (this fork)](https://img.shields.io/github/v/release/heza-ru/disactivity?style=flat-square&logo=github&label=release)](https://github.com/heza-ru/disactivity/releases)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&style=flat-square)](https://tauri.app/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black&style=flat-square)](https://react.dev/)
+
+`v0.1.0-1` · *Version in this repository ([`package.json`](package.json) / [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json)). **MSI/NSIS** bundles require a **numeric-only** prerelease (e.g. `0.1.0-1`, not `0.1.0-alpha`). **GitHub Releases** for this fork are the source of truth for installable builds here.*
+
+</div>
+
+> **Independent fork**  
+> This repository is **actively maintained on its own** — it is **not** a mirror of upstream release tags, issues, or roadmap. Installers, version numbers, and **Releases** published **here** apply to **this** project. For the original application and its author, see [Credits](#credits).
 
 ---
 
-## Description
+## Table of contents
 
-**Disactivity** is a lightweight desktop application that lets you simulate playing any game. Select a game from the list, click **Run**, and your activity status will show that game as your current activity — without it being installed on your system.
+- [Why this fork](#why-this-fork)
+- [How it differs from the parent repo](#how-it-differs-from-the-parent-repo)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Download](#download)
+- [How it works](#how-it-works)
+- [Developers](#developers)
+- [Project structure](#project-structure)
+- [Privacy & safety](#privacy--safety)
+- [License](#license)
+- [Contributing](#contributing)
+- [Credits](#credits)
 
-The app fetches its game catalogue from a public games API, giving you access to thousands of titles. Multiple games can be simulated simultaneously, each with its own independent timer.
+---
 
-<p align="center">
-  <img src="public/banner.png" alt="Disactivity screenshot">
-</p>
+## Why this fork
+
+[holasoyender/disactivity](https://github.com/holasoyender/disactivity) is the **parent** project. **This** repo is a **separate line of development**: own commits, own releases, and behavior that may **diverge** as features and refactors land here first (or only here). Use **this** project’s [Releases](https://github.com/heza-ru/disactivity/releases) for builds that match the code in this tree — not the parent’s release page.
+
+---
+
+## How it differs from the parent repo
+
+| Area | This fork (high level) |
+|------|------------------------|
+| **Releases** | Versioned and published from **[heza-ru/disactivity](https://github.com/heza-ru/disactivity/releases)**; not aligned 1:1 with parent tags. |
+| **Frontend** | [React Compiler](https://react.dev/learn/react-compiler) enabled in Vite for typical builds; virtualized long lists ([TanStack Virtual](https://tanstack.com/virtual)), split i18n loading, idle-deferred work for snappier startup. |
+| **Desktop integration** | Batched Tauri `apply_startup_ui_settings` (tray, idle, schedule, media, IDE) to reduce startup IPC. |
+| **Settings & product** | Extended options (e.g. API keys, discovery, remote, presence/scheduling) — *exact surface may change; treat this README and in-app copy as the source of truth for **this** build.* |
+| **Build tooling** | `bun run build:analyze` (Rollup treemap to `dist/stats.html`), optional one-off build without the compiler, Vitest for tests. |
+
+*If you need parity with the original app, compare against the [parent repository](https://github.com/holasoyender/disactivity) directly.*
 
 ---
 
 ## Features
 
-**Game browsing**
-- Browse thousands of games from the detectable-games catalogue
-- Live search — results update as you type, filtering by name, ID, or alias
-- Paginated list with configurable page size and a page-jump control
-- Game details dialog showing aliases and all available executables per platform
-- Copy a game's application ID to the clipboard in one click
+**Library & search**
 
-**Activity simulation**
-- Run multiple games simultaneously — each appears as a separate activity
-- Executable selection — choose a specific process name when a game has more than one
-- Auto-stop timer — automatically ends simulation after a configurable number of minutes
-- Running-games task manager in the title bar showing elapsed time and a progress bar per game
-- Stop individual games or all games at once
+- Game catalogue from a public detectable-games source; list cached and refreshable
+- **Live search** (name, ID, aliases) with **debounced** filtering
+- **Favorites** at the top; **virtualized** lists for large libraries; pagination + page jump
+- **Recently played** quick strip; **import/export** favorites (JSON)
+- **Game details** (aliases, executables, rich metadata when configured)
 
-**Favourites**
-- Star any game to pin it to the top of the list
-- Export favourites to a JSON file and import them on another machine
+**Simulation**
 
-**Recently played**
-- The home page shows up to 10 recently played games as a quick-launch strip
+- Multiple games at once, per-game timers and **title-bar** “running games” control
+- Optional **executable** choice when a title exposes more than one Win32 binary
+- **Auto-stop** after a configurable duration; **idle**-based auto-stop (when enabled)
 
-**Settings page**
-- Minimize to system tray on window close (or exit directly)
-- Auto-stop toggle and configurable timer duration (1 – 480 minutes)
-- Games shown per page (10 – 200)
-- Cache management — view when the game list was last fetched and force a refresh
+**App shell**
 
-**System tray**
-- Hide to tray on close so the app keeps running in the background
-- Left-click the tray icon to toggle window visibility
-- Tray menu: Show window / Quit (cleans up all running processes before exit)
+- **System tray** behavior, in-app **updater**, **dark / light** theme, **i18n** (e.g. en-US, es-ES)
+- **Remote** page (phone/tablet on the same network) and other product pages as shipped in this fork
 
-**Updater**
-- Built-in auto-updater checks for new releases on launch
-- Download and install updates in-app with a progress indicator
-- One-click restart to apply the update
+**Developer experience (this tree)**
 
-**Interface**
-- Three-page navigation: Home, Settings, About
-- Dark and light theme toggle
-- Windows-style window controls (minimize, maximize, close)
-- Keyboard shortcuts: `/` or `Ctrl+F` focuses search, `Escape` clears it
-- Available in English and Spanish
+- TypeScript, Vite, Tauri 2, Rust, Bun; tests via Vitest
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="public/banner.png" alt="Disactivity" width="720" />
+</p>
 
 ---
 
 ## Download
 
-Download the latest installer from the [GitHub Releases](https://github.com/holasoyender/disactivity/releases/latest) page.
+**Get builds from this fork only:**
 
-> **Insider builds** — This fork ([github.com/heza-ru/disactivity](https://github.com/heza-ru/disactivity)) runs ahead of the upstream repo with new features and fixes merged before they land upstream. If you want an early preview, grab a release build from there instead.
+[![GitHub All Releases](https://img.shields.io/github/downloads/heza-ru/disactivity/total?style=flat-square&logo=github&label=downloads%20%28all%20releases%29)](https://github.com/heza-ru/disactivity/releases)
 
----
+→ **[Latest release (this repo)](https://github.com/heza-ru/disactivity/releases/latest)**
 
-## How It Works
-
-1. **Launch Disactivity** and wait for the game list to load (cached after first fetch).
-2. **Find a game** using the search bar or by browsing the paginated list.
-3. **Click Run** on a game card. Disactivity writes a small placeholder executable to a temporary directory, using the exact filename associated with that game.
-4. **Activity-tracking software detects** the running process by name and shows the game as your current activity.
-5. **Click Stop** (or let the auto-stop timer fire) to end the simulation. Temporary files are deleted automatically.
-
-### Technical notes
-
-- The placeholder process (`slave.exe`) is a minimal Win32 application embedded in the main binary. It creates an off-screen, non-activating window so it can be detected without appearing on screen.
-- Executable path selection: when a game has multiple Win32 executables, Disactivity picks the one with the fewest path segments (i.e. the root-level binary) to minimise the chance of a path mismatch. You can override this with the executable-selection dropdown.
-- The game list is cached locally for 48 hours. Use **Settings > Refresh Now** to force a fresh fetch.
-- On quit (via the tray menu or when minimize-to-tray is disabled), all child processes are terminated and their temporary directories are removed before the app exits.
+*The parent project’s [releases](https://github.com/holasoyender/disactivity/releases) are a **different** channel — use them only when you want upstream’s artifacts.*
 
 ---
 
-## Building from Source
+## How it works
+
+1. The app **loads a catalogue** of games and caches it locally.
+2. You **Run** a game: a small placeholder process (`slave.exe` on Windows) is spawned so monitoring software can **detect the right executable name** — no full game install required.
+3. You **Stop** manually, via auto-stop, or from global controls; temp artifacts are cleaned up.
+4. Optional: **tray** minimize, **updater** checks, **remote** and **metadata** when you configure API keys (see in-app **Settings**).
+
+*Technical details (cache TTL, process lifecycle, etc.) are implementation details — read the code and in-app help for the exact build you run.*
+
+---
+
+## Developers
 
 ### Prerequisites
 
 - [Bun](https://bun.sh/)
-- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
-- Windows target toolchain (`x86_64-pc-windows-msvc`) if cross-compiling
+- [Rust](https://www.rust-lang.org/tools/install) (stable) + Windows `msvc` toolchain for Windows builds
+- Tauri 2 [requirements](https://v2.tauri.app/start/prerequisites/) for your OS
 
-### Steps
+### Quick start
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/holasoyender/disactivity.git
-   cd disactivity
-   ```
+```bash
+# clone this fork (not the parent) if you want this codebase
+git clone https://github.com/heza-ru/disactivity.git
+cd disactivity
 
-2. **Install frontend dependencies**
-   ```bash
-   bun install
-   ```
+bun install
 
-3. **Build the slave executable** (must be done before the main build)
-   ```bash
-   cd src-tauri/slave
-   cargo build --release
-   cd ../..
-   ```
+# Build the embedded Windows slave binary before full Tauri build
+cd src-tauri/slave
+cargo build --release
+cd ../..
 
-4. **Run in development mode**
-   ```bash
-   bun run tauri dev
-   ```
+# Dev
+bun run tauri dev
 
-5. **Build for production**
-   ```bash
-   bun run tauri build
-   ```
+# Production bundle (output under src-tauri/target/.../bundle/)
+bun run tauri:build
+```
 
-The installer and portable binary are placed in `src-tauri/target/release/bundle/`.
+| Script | Use |
+|--------|-----|
+| `bun run dev` / `bun run tauri dev` | Vite + Tauri dev |
+| `bun run build` | Web build only |
+| `bun run tauri:build` | App installer / bundle |
+| `bun run build:analyze` | `dist/stats.html` chunk treemap |
+| `bun run test` | Vitest |
+
+### Tech stack (current)
+
+- **UI:** React 19, Vite, Tailwind CSS, Radix primitives
+- **Desktop:** Tauri 2, Rust
+- **Package manager:** Bun
 
 ---
 
-## Project Structure
+## Project structure (abbrev.)
 
 ```
-disactivity/
-├── src/                        # Frontend — React + TypeScript
-│   ├── components/             # Shared UI components
-│   │   ├── ui/                 # Primitive components (Button, Input, Dialog, ...)
-│   │   ├── game-card.tsx       # Individual game row with run/stop controls
-│   │   ├── game-details-dialog.tsx
-│   │   ├── nav-bar.tsx         # Page tab navigation
-│   │   └── title-bar.tsx       # Custom title bar with task manager
-│   ├── pages/                  # Top-level page components
-│   │   ├── home-page.tsx       # Game browser and recently played
-│   │   ├── settings-page.tsx   # All configurable options
-│   │   └── about-page.tsx      # App information
-│   ├── i18n/
-│   │   └── locales/            # en-US.json, es-ES.json
-│   └── lib/
-│       └── settings.ts         # Settings schema, load/save helpers
-├── src-tauri/                  # Backend — Rust + Tauri 2
-│   ├── src/
-│   │   └── lib.rs              # Commands: fetch_games, start_game, stop_game, ...
-│   ├── slave/                  # Placeholder process source
-│   │   └── src/main.rs
-│   └── icons/                  # Application icons
-└── public/                     # Static assets
+.
+├── public/                 # Static assets, icons
+├── src/                    # React + TypeScript frontend
+│   ├── components/         # UI, game list, title bar, …
+│   ├── pages/              # Home, settings, about, remote, …
+│   ├── i18n/locales/      # en-US, es-ES, …
+│   └── lib/                # settings, schedulers, utilities
+├── src-tauri/              # Rust, Tauri commands, bundling
+│   ├── src/                # e.g. lib.rs, feature modules
+│   └── slave/              # Windows placeholder process
+└── scripts/                # build helpers
 ```
 
 ---
 
-## Privacy and Safety
+## Privacy & safety
 
-- **No telemetry** — Disactivity does not collect or transmit any personal data.
-- **Open source** — All code is publicly available for review.
-- **Minimal network access** — The only outbound requests are to fetch the game list and optional third-party API keys you configure yourself.
-- **Temporary files only** — Placeholder executables are written to the system temp directory and deleted when the simulation stops or the app exits.
+- **No built-in telemetry** in this project’s source as shipped here — review releases yourself.
+- **Network** use is for catalogue/metadata/updater and **optional** services you enable (e.g. API keys).
+- Placeholder binaries use **temp** storage where applicable; see code for your platform.
 
 ---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+**MIT** — see [`LICENSE`](LICENSE).  
+Upstream and this fork are both open source; **compliance and attribution** remain your responsibility for how you use and redistribute builds.
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Here's how you can help:
-
-- **Star the repo** — it helps others discover the project and keeps the motivation going ⭐
-- **Fork and improve** — clone it, make it yours, then open a pull request
-- **Report bugs** — open an issue if something doesn't work as expected
-- **Suggest features** — have an idea? Start a discussion in the Issues tab
-
-Please open an issue to discuss larger changes before submitting a pull request.
+- **Issues & PRs** for this line of work should target **[this repository](https://github.com/heza-ru/disactivity)**, not the parent, unless you intend to contribute **upstream** there.
+- For **large** changes, open an issue first.
+- Starring the repo helps visibility — on **this** fork if you use this code.
 
 ---
 
-## Star History
+## Credits
+
+| | |
+|---|---|
+| **Original project** | **Disactivity** by **[holasoyender](https://github.com/holasoyender)** — [github.com/holasoyender/disactivity](https://github.com/holasoyender/disactivity) |
+| **This fork** | Maintained separately: **[heza-ru/disactivity](https://github.com/heza-ru/disactivity)** (releases & issues here). |
+
+Original app concept, branding lineage, and prior art belong to the **parent** project and its **original creator** above. This README’s **version** and **release** references apply to **this** fork only.
+
+---
 
 <p align="center">
   <a href="https://star-history.com/#holasoyender/disactivity&Date">
-    <img src="https://api.star-history.com/svg?repos=holasoyender/disactivity&type=Date" alt="Star History Chart" width="600">
+    <img src="https://api.star-history.com/svg?repos=holasoyender/disactivity&type=Date" alt="Star history — original Disactivity repository" width="600" />
   </a>
-</p>
-
----
-
-<p align="center">
-  If Disactivity is useful to you, consider giving it a ⭐ on GitHub — it means a lot!<br>
-  <a href="https://github.com/holasoyender/disactivity">github.com/holasoyender/disactivity</a>
+  <br />
+  <sub>Star history: <strong>original</strong> <code>holasoyender/disactivity</code> (reference). Star <a href="https://github.com/heza-ru/disactivity">this fork</a> to support <strong>this</strong> line of development.</sub>
 </p>

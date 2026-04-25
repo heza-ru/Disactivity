@@ -13,6 +13,7 @@ dist-ssr
 *.local
 
 # Editor directories and files
+.cursor/
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -27,4 +28,11 @@ dist-ssr
 .tauri/
 *.key
 !*.key.pub
+signing.env.local
+.env
+.env.local
+.env.signing.local
+
+# Literal `~` directory in this repo (e.g. ~/.tauri/ keys from `tauri signer generate -w ./~/.tauri/...`)
+/~/
 

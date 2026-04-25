@@ -1,5 +1,3 @@
-"use client"
-
 import { Home, Settings, Info, Smartphone } from "lucide-react"
 import { useTranslation } from "react-i18next"
 

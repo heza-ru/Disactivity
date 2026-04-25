@@ -1,23 +1,25 @@
-"use client"
-
 import type React from "react"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react"
 import { useTranslation } from "react-i18next"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import type { Game } from "@/components/game-card"
 import { TitleBar } from "@/components/title-bar"
 import { NavBar, type AppPage } from "@/components/nav-bar"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { loadSettings, saveSettings, type AppSettings } from "@/lib/settings"
-import { HomePage, type RecentGame } from "@/pages/home-page"
-import { SettingsPage } from "@/pages/settings-page"
-import { AboutPage } from "@/pages/about-page"
-import { RemotePage } from "@/pages/remote-page"
+import type { RecentGame } from "@/pages/home-page"
+
+const HomePage = lazy(() => import("@/pages/home-page").then((m) => ({ default: m.HomePage })))
+const SettingsPage = lazy(() => import("@/pages/settings-page").then((m) => ({ default: m.SettingsPage })))
+const AboutPage = lazy(() => import("@/pages/about-page").then((m) => ({ default: m.AboutPage })))
+const RemotePage = lazy(() => import("@/pages/remote-page").then((m) => ({ default: m.RemotePage })))
 import type { ApiKeys, DiscoveryData } from "@/types/discovery"
+import { scheduleWhenIdle } from "@/lib/schedule-idle"
 
 interface FetchGamesResponse {
     games: Game[]
@@ -59,8 +61,8 @@ export default function App() {
 
     // Discovery state
     const [discoveryData, setDiscoveryData] = useState<DiscoveryData | null>(null)
-    const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false)
     const [hasRawgKey, setHasRawgKey] = useState(false)
+    const [uiNow, setUiNow] = useState(() => Date.now())
 
     // Merge API games with custom games
     const allGames = useMemo(() => [...customGames, ...games], [customGames, games])
@@ -68,37 +70,24 @@ export default function App() {
     // O(1) game lookup
     const gamesById = useMemo(() => new Map(allGames.map((g) => [g.id, g])), [allGames])
 
-    // Sync settings to Rust on startup
+    // One batched sync to Rust (tray, idle, schedule, media, IDE) on mount and when any field changes
     useEffect(() => {
-        invoke("set_minimize_to_tray", { enabled: settings.minimizeToTray }).catch(console.error)
-        invoke("set_idle_stop", {
-            enabled: settings.idleStopEnabled,
-            minutes: settings.idleStopMinutes,
+        invoke("apply_startup_ui_settings", {
+            minimizeToTray: settings.minimizeToTray,
+            idleStopEnabled: settings.idleStopEnabled,
+            idleStopMinutes: settings.idleStopMinutes,
+            scheduleEnabled: settings.scheduleEnabled,
+            mediaEnabled: settings.mediaEnabled,
+            ideEnabled: settings.ideEnabled,
         }).catch(console.error)
-        invoke("set_schedule_watcher", { enabled: settings.scheduleEnabled }).catch(console.error)
-        invoke("set_media_watcher", { enabled: settings.mediaEnabled }).catch(console.error)
-        invoke("set_ide_watcher", { enabled: settings.ideEnabled }).catch(console.error)
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Re-sync idle stop whenever the relevant settings change
-    useEffect(() => {
-        invoke("set_idle_stop", {
-            enabled: settings.idleStopEnabled,
-            minutes: settings.idleStopMinutes,
-        }).catch(console.error)
-    }, [settings.idleStopEnabled, settings.idleStopMinutes])
-
-    useEffect(() => {
-        invoke("set_schedule_watcher", { enabled: settings.scheduleEnabled }).catch(console.error)
-    }, [settings.scheduleEnabled])
-
-    useEffect(() => {
-        invoke("set_media_watcher", { enabled: settings.mediaEnabled }).catch(console.error)
-    }, [settings.mediaEnabled])
-
-    useEffect(() => {
-        invoke("set_ide_watcher", { enabled: settings.ideEnabled }).catch(console.error)
-    }, [settings.ideEnabled])
+    }, [
+        settings.minimizeToTray,
+        settings.idleStopEnabled,
+        settings.idleStopMinutes,
+        settings.scheduleEnabled,
+        settings.mediaEnabled,
+        settings.ideEnabled,
+    ])
 
     // Listen for backend idle-stop event and immediately clear UI state
     useEffect(() => {
@@ -108,6 +97,17 @@ export default function App() {
         })
         return () => { unlisten.then((fn) => fn()) }
     }, [])
+
+    // Single 1s clock while any game is running (elapsed UIs, auto-stop) — one timer for the whole shell
+    useEffect(() => {
+        if (runningGames.size === 0) {
+            setUiNow(Date.now())
+            return
+        }
+        setUiNow(Date.now())
+        const id = setInterval(() => setUiNow(Date.now()), 1000)
+        return () => clearInterval(id)
+    }, [runningGames.size])
 
     // Poll every 7 seconds to detect games that were stopped externally
     // (e.g. the user killed slave.exe from Task Manager).
@@ -181,14 +181,11 @@ export default function App() {
     )
 
     const fetchDiscovery = useCallback(async (forceRefresh = false) => {
-        setIsLoadingDiscovery(true)
         try {
             const data = await invoke<DiscoveryData>("fetch_discovery", { forceRefresh })
             setDiscoveryData(data)
         } catch (err) {
             console.error("Discovery fetch failed:", err)
-        } finally {
-            setIsLoadingDiscovery(false)
         }
     }, [])
 
@@ -210,12 +207,14 @@ export default function App() {
         }
     }, [])
 
-    // On startup: load API keys state and always fetch discovery (FreeToGame used when no RAWG key)
+    // On startup: API keys for UI; discovery is deferred to idle time so the shell paints first
     useEffect(() => {
         invoke<ApiKeys>("get_api_keys")
             .then((keys) => setHasRawgKey(!!(keys.rawg_api_key?.trim())))
             .catch(console.error)
-        fetchDiscovery(false).catch(console.error)
+        scheduleWhenIdle(() => {
+            fetchDiscovery(false).catch(console.error)
+        })
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleAddCustomGame = useCallback(async (name: string, executable: string) => {
@@ -373,14 +372,13 @@ export default function App() {
                     data.ids ?? data.favorites?.map((f: { id: string }) => f.id) ?? []
                 if (!Array.isArray(ids)) throw new Error("Invalid format")
 
-                let added = 0
-                for (const id of ids) {
-                    if (!favorites.has(id)) {
-                        await invoke("add_favorite", { gameId: id }).catch(() => {})
-                        added++
-                    }
+                const toAdd = ids.filter((id) => !favorites.has(id))
+                const added = toAdd.length === 0
+                    ? 0
+                    : await invoke<number>("add_favorites_if_missing", { gameIds: toAdd }).catch(() => 0)
+                if (toAdd.length > 0) {
+                    await fetchFavorites()
                 }
-                await fetchFavorites()
                 toast.success(t("favorites.imported"), {
                     description: t("favorites.importedDesc", { count: added }),
                 })
@@ -421,15 +419,24 @@ export default function App() {
 
     return (
         <ErrorBoundary>
+            <TooltipProvider delayDuration={200}>
             <div className="h-screen flex flex-col bg-background/90 dark:bg-background/80 backdrop-blur-xl font-sans antialiased overflow-hidden">
                 <TitleBar
                     runningGames={runningGamesInfo}
                     onStopGame={handleStopGame}
                     autoStopMinutes={settings.autoStopMinutes}
                     settings={settings}
+                    uiNow={uiNow}
                 />
                 <NavBar currentPage={activePage} onNavigate={setActivePage} />
 
+                <Suspense
+                    fallback={(
+                        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground mt-20">
+                            {t("loading.shell")}
+                        </div>
+                    )}
+                >
                 {activePage === "home" && (
                     <HomePage
                         games={allGames}
@@ -444,8 +451,8 @@ export default function App() {
                         recentlyPlayed={recentlyPlayed}
                         gamesById={gamesById}
                         discoveryData={discoveryData}
-                        isLoadingDiscovery={isLoadingDiscovery}
                         hasRawgKey={hasRawgKey}
+                        uiNow={uiNow}
                         onRefresh={handleRefresh}
                         onStartGame={handleStartGame}
                         onStopGame={handleStopGame}
@@ -455,7 +462,6 @@ export default function App() {
                         onAddCustomGame={handleAddCustomGame}
                         onDeleteCustomGame={handleDeleteCustomGame}
                         onNavigateToSettings={() => setActivePage("settings")}
-                        fetchFavorites={fetchFavorites}
                     />
                 )}
 
@@ -471,9 +477,11 @@ export default function App() {
 
                 {activePage === "remote" && <RemotePage />}
                 {activePage === "about" && <AboutPage />}
+                </Suspense>
 
                 <Toaster />
             </div>
+            </TooltipProvider>
         </ErrorBoundary>
     )
 }

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Disactivity — Remote</title>
+  <style>
+    :root {
+      /* Matches App.css .dark */
+      --bg: #25252a;
+      --card: #303036;
+      --text: #fafafa;
+      --muted: #a1a1a8;
+      --primary: #5865f2;
+      --primary-hover: #4752c4;
+      --destructive: #ef4444;
+      --border: rgba(255,255,255,0.1);
+      --radius: 0.75rem;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font: 16px/1.45 system-ui, "Segoe UI", Inter, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100dvh;
+    }
+    header {
+      position: sticky; top: 0; z-index: 2; padding: 0.9rem 1rem;
+      background: rgba(37,37,42,0.92); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 1.05rem; font-weight: 600; margin: 0; letter-spacing: 0.02em; }
+    p.sub { margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--muted); }
+    main { padding: 1rem; max-width: 32rem; margin: 0 auto; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .dot { width: 0.4rem; height: 0.4rem; border-radius: 9999px; background: #22c55e; }
+    .list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
+    .game {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 0.65rem 0.9rem; font-size: 0.9rem;
+    }
+    .name { font-weight: 500; word-break: break-word; }
+    .btn {
+      font: inherit; cursor: pointer; border: 0; border-radius: 0.5rem;
+      padding: 0.4rem 0.75rem; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+    }
+    .btn-primary { background: var(--primary); color: #f6f6ff; }
+    .btn-primary:disabled { opacity: 0.4; }
+    .btn-ghost { background: transparent; color: var(--muted); }
+    .btn-danger { background: var(--destructive); color: #fff; }
+    .err {
+      color: #fca5a5; font-size: 0.85rem; background: rgba(127, 29, 29, 0.35);
+      border: 1px solid rgba(255, 99, 99, 0.3); border-radius: var(--radius);
+      padding: 0.75rem; margin-bottom: 1rem;
+    }
+    .foot { font-size: 0.7rem; color: var(--muted); margin-top: 1.5rem; }
+    #pin-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    #pin-form input {
+      flex: 1; padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); font: inherit;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="row">
+      <h1>Disactivity</h1>
+      <span class="badge"><span class="dot"></span> remote</span>
+    </div>
+    <p class="sub" id="status-line">Loading…</p>
+  </header>
+  <main>
+    <div id="err-box" class="err" style="display:none"></div>
+    <div id="pin-prompt" style="display:none">
+      <p class="sub">A PIN is required. Enter it, or use <code style="color:var(--primary)">?pin=…</code> in the address bar.</p>
+      <form id="pin-form" action="#" onsubmit="return false">
+        <input type="password" id="pin-input" placeholder="PIN" autocomplete="one-time-code" />
+        <button class="btn btn-primary" type="button" id="pin-save">Save</button>
+      </form>
+    </div>
+    <div class="row" style="margin: 0.5rem 0 0.25rem">
+      <span class="badge" style="font-size:0.65rem">Running</span>
+    </div>
+    <div id="running" class="list"></div>
+    <div class="row" style="margin:1rem 0 0.25rem">
+      <span class="badge" style="font-size:0.65rem">Games</span>
+      <button class="btn btn-ghost" type="button" id="refresh">Refresh</button>
+    </div>
+    <div id="games" class="list"></div>
+    <p class="foot">LAN only. Same Wi‑Fi as the PC. If this page is blank, open the full URL (including ?pin) from the PC app’s Remote page.</p>
+  </main>
+  <script>
+  (function () {
+    const qs = new URLSearchParams(location.search);
+    const fromUrl = qs.get("pin");
+    if (fromUrl) { try { localStorage.setItem("disactivity_pin", fromUrl) } catch (e) {} }
+    function getPin() {
+      try { return (fromUrl || localStorage.getItem("disactivity_pin") || "").trim() } catch (e) { return fromUrl || "" }
+    }
+    function withPin(init) {
+      const p = getPin();
+      const o = { ...init };
+      if (p) o["x-pin"] = p;
+      o["Accept"] = "application/json";
+      return o;
+    }
+    let gamesCache = [];
+    const statusLine = document.getElementById("status-line");
+    const errBox = document.getElementById("err-box");
+    const runningEl = document.getElementById("running");
+    const gamesEl = document.getElementById("games");
+    const pinPrompt = document.getElementById("pin-prompt");
+    const pinInput = document.getElementById("pin-input");
+    const pinSave = document.getElementById("pin-save");
+    const refreshBtn = document.getElementById("refresh");
+    function showErr(msg) {
+      if (!msg) { errBox.style.display = "none"; return; }
+      errBox.textContent = msg;
+      errBox.style.display = "block";
+    }
+    function check401(r) { return r && r.status === 401; }
+    async function getStatus() { return fetch("/api/status", { headers: withPin({}) }) }
+    async function api(path, method, body) {
+      const m = { method: method || "GET", headers: withPin({}) };
+      if (body) {
+        m.headers = withPin({ "Content-Type": "application/json" });
+        m.body = JSON.stringify(body);
+      }
+      return fetch(path, m);
+    }
+    async function load() {
+      showErr("");
+      const rs = await getStatus();
+      if (check401(rs)) {
+        statusLine.textContent = "Not authorized (PIN).";
+        pinPrompt.style.display = "block";
+        if (getPin()) { showErr("Check that the PIN matches the one on the PC, then try Save."); }
+        return;
+      }
+      pinPrompt.style.display = "none";
+      sok = rs.ok;
+      let st = { running_game_ids: [] };
+      if (sok) { try { st = await rs.json() } catch (e) {} }
+      statusLine.textContent = sok
+        ? (st.running_game_ids && st.running_game_ids.length
+          ? st.running_game_ids.length + " game(s) simulating"
+          : "Connected — no games running")
+        : "Could not read status";
+      const rg = document.createDocumentFragment();
+      if (st && st.running_game_ids && st.running_game_ids.length) {
+        for (const id of st.running_game_ids) {
+          const row = document.createElement("div");
+          row.className = "game";
+          const lab = id.length > 28 ? id.slice(0, 26) + "…" : id;
+          row.innerHTML = '<span class="name" title="' + id.replace(/"/g, "&quot;") + '">' + lab + "</span><button class=\"btn btn-danger\" data-stop=\"" + id + "\">Stop</button>";
+          rg.appendChild(row);
+        }
+      } else {
+        const em = document.createElement("p");
+        em.className = "sub";
+        em.textContent = "No active simulations.";
+        rg.appendChild(em);
+      }
+      runningEl.innerHTML = "";
+      runningEl.appendChild(rg);
+      for (const b of runningEl.querySelectorAll("[data-stop]")) {
+        b.onclick = () => stopGame(b.getAttribute("data-stop"));
+      }
+      const rgames = await fetch("/api/games", { headers: withPin({}) });
+      if (check401(rgames) && !getPin()) { pinPrompt.style.display = "block"; return; }
+      if (check401(rgames)) { showErr("Invalid PIN."); pinPrompt.style.display = "block"; return; }
+      gok = rgames.ok;
+      if (!gok) { showErr("Could not load the game list."); return }
+      const games = await rgames.json();
+      gamesCache = Array.isArray(games) ? games : [];
+      gamesEl.innerHTML = "";
+      const gfrag = document.createDocumentFragment();
+      for (const g of gamesCache.slice(0, 200)) {
+        if (!g || !g.id) continue;
+        const isRun = (st.running_game_ids || []).indexOf(g.id) >= 0;
+        const d = document.createElement("div");
+        d.className = "game";
+        const nm = (g.name || g.id) + "";
+        d.innerHTML =
+          '<span class="name" title="">' + nm.replace(/</g, "&lt;") + "</span>" +
+          (isRun
+            ? '<span class="sub" style="font-size:0.8rem">Running</span>'
+            : '<button class="btn btn-primary" data-start="' + ("" + g.id).replace(/"/g, "&quot;") + '">Run</button>');
+        gfrag.appendChild(d);
+      }
+      gamesEl.appendChild(gfrag);
+      for (const b of gamesEl.querySelectorAll("[data-start]")) {
+        b.onclick = () => startGame(b.getAttribute("data-start"));
+      }
+    }
+    async function startGame(id) {
+      if (!id) return;
+      const r = await api("/api/games/start", "POST", { game_id: id });
+      if (check401(r)) { showErr("PIN required or wrong."); pinPrompt.style.display = "block"; return }
+      if (!r.ok) { const t = await r.text(); showErr("Start failed: " + (t || r.status)); return }
+      showErr(""); load();
+    }
+    async function stopGame(id) {
+      if (!id) return;
+      const r = await api("/api/games/stop", "POST", { game_id: id });
+      if (check401(r)) { showErr("PIN required or wrong."); return }
+      load();
+    }
+    pinSave.addEventListener("click", function () {
+      const v = (pinInput && pinInput.value) ? pinInput.value.trim() : "";
+      if (!v) return;
+      try { localStorage.setItem("disactivity_pin", v) } catch (e) {}
+      showErr(""); load();
+    });
+    refreshBtn.addEventListener("click", load);
+    load();
+  })();
+  </script>
+</body>
+</html>

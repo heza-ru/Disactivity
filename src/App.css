@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter/standard.css";
+/* wght axis only (no opsz); same subsets as the default fontsource entry, slightly smaller */
+@import "@fontsource-variable/inter/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 
