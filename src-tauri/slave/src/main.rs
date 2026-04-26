@@ -1,32 +1,44 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
+#[cfg(windows)]
 use std::env;
+#[cfg(windows)]
 use std::ffi::OsStr;
+#[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
 use std::path::Path;
+#[cfg(windows)]
 use std::ptr::null_mut;
+#[cfg(windows)]
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+#[cfg(windows)]
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
+#[cfg(windows)]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, LoadImageW, RegisterClassW,
-    ShowWindow, CS_HREDRAW, CS_VREDRAW, HICON, IMAGE_ICON, LR_LOADFROMFILE, MSG,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, LoadImageW, PostQuitMessage,
+    RegisterClassW, ShowWindow, CS_HREDRAW, CS_VREDRAW, HICON, IMAGE_ICON, LR_LOADFROMFILE, MSG,
     SW_SHOWMINNOACTIVE, WNDCLASSW, WM_CLOSE, WM_DESTROY, WM_ENDSESSION, WM_QUERYENDSESSION,
-    WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_OVERLAPPEDWINDOW, WS_POPUP,
+    WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_POPUP,
 };
 
+#[cfg(windows)]
 fn to_wide(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
 }
 
+#[cfg(windows)]
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
-        WM_CLOSE | WM_DESTROY => 0,
+        WM_CLOSE => DefWindowProcW(hwnd, msg, wparam, lparam),
+        WM_DESTROY => { PostQuitMessage(0); 0 }
         WM_QUERYENDSESSION => 1,
         WM_ENDSESSION => 0,
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
     }
 }
 
+#[cfg(windows)]
 fn main() {
     let exe_path = env::current_exe().unwrap_or_default();
     let exe_stem = Path::new(&exe_path)
@@ -79,7 +91,7 @@ fn main() {
             WS_EX_APPWINDOW | WS_EX_NOACTIVATE,
             class_name.as_ptr(),
             window_title.as_ptr(),
-            WS_POPUP | WS_OVERLAPPEDWINDOW,
+            WS_POPUP,
             -32000,
             -32000,
             1,
@@ -98,3 +110,6 @@ fn main() {
         }
     }
 }
+
+#[cfg(not(windows))]
+fn main() {}

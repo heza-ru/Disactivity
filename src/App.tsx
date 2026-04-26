@@ -51,7 +51,7 @@ function addRecentlyPlayed(gameId: string, current: RecentGame[]): RecentGame[] 
 export default function App() {
     const { t } = useTranslation()
     const windowLabel = useMemo(() => {
-        try { return getCurrentWindow().label } catch { return "main" }
+        try { return getCurrentWindow().label } catch (e) { console.error("Failed to get window label:", e); return "main" }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     const [activePage, setActivePage] = useState<AppPage>("home")
@@ -433,7 +433,7 @@ export default function App() {
             const existing = await WebviewWindow.getByLabel("slave-popup")
 
             if (runningGames.size === 0) {
-                if (existing) await existing.close().catch(() => {})
+                if (existing) await existing.close().catch((e) => console.error("Failed to close slave popup:", e))
                 return
             }
 
@@ -464,7 +464,7 @@ export default function App() {
                 : undefined
 
             const win = new WebviewWindow("slave-popup", {
-                url: "index.html?slavePopup=1",
+                url: "index.html",
                 title: activeGame?.name ?? "Activity Session",
                 width: W,
                 height: H,
@@ -481,7 +481,7 @@ export default function App() {
         }
 
         syncPopup().catch(console.error)
-    }, [runningGames.size, isSlavePopupWindow, runningGames, gamesById])
+    }, [runningGames, isSlavePopupWindow, gamesById])
 
     return (
         <ErrorBoundary>

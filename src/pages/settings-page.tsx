@@ -11,6 +11,8 @@ import type { AppSettings } from "@/lib/settings"
 import type { ApiKeys } from "@/types/discovery"
 import type { PresenceProfile, ScheduleEntry } from "@/types/schedules"
 
+const DISACTIVITY_CLIENT_ID = "1498099063659298948"
+
 interface SettingsPageProps {
     settings: AppSettings
     onSaveSettings: (settings: AppSettings) => void
@@ -99,7 +101,7 @@ export function SettingsPage({
     const [cacheTimestamp, setCacheTimestamp] = useState<string | null>(null)
 
     // Custom presence state
-    const [cpClientId, setCpClientId] = useState("")
+    const [cpClientId, setCpClientId] = useState(DISACTIVITY_CLIENT_ID)
     const [cpDetails, setCpDetails] = useState("")
     const [cpStateText, setCpStateText] = useState("")
     const [cpActive, setCpActive] = useState(false)
@@ -578,7 +580,7 @@ export function SettingsPage({
                                     </div>
                                 ))}
                             </div>
-                            <Button variant="outline" size="sm" className="mt-2 gap-1.5 w-full" onClick={() => setEditingProfile({ name: "", client_id: "", details: null, state_text: null })}>
+                            <Button variant="outline" size="sm" className="mt-2 gap-1.5 w-full" onClick={() => setEditingProfile({ name: "", client_id: DISACTIVITY_CLIENT_ID, details: null, state_text: null })}>
                                 <Plus className="h-3.5 w-3.5" />{t("schedules.addProfile")}
                             </Button>
                         </div>
